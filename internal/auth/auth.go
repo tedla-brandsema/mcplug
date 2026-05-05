@@ -48,7 +48,13 @@ func New(cfg Config) (Authenticator, error) {
 		return NewBearerFromEnv(cfg.TokenEnv)
 
 	case "oidc":
-		return nil, fmt.Errorf("oidc auth is not implemented yet")
+		return NewOIDC(OIDCConfig{
+			Issuer:          cfg.Issuer,
+			Audience:        cfg.Audience,
+			JWKSURL:         cfg.JWKSURL,
+			AllowedEmails:   cfg.AllowedEmails,
+			AllowedSubjects: cfg.AllowedSubjects,
+		})
 
 	default:
 		return nil, fmt.Errorf("unsupported auth mode %q", cfg.Mode)
