@@ -30,6 +30,9 @@ go mod tidy
 go test ./...
 go run ./cmd/mcpfs -config config.example.json
 ```
+## Inspect Stdio
+
+`bunx @modelcontextprotocol/inspector`
 
 ## Configuration
 
@@ -68,6 +71,23 @@ Tool paths are always interpreted relative to a configured root.
 * files larger than the configured root limit
 
 `.gitignore` support is an additional policy layer. It never weakens the root boundary.
+
+## Manual verification
+
+Verified with MCP Inspector over STDIO.
+
+Example successful calls:
+
+- `fs_roots`
+- `fs_list` with `root_id=mcpfs`, `path=.`
+- `fs_stat` with `root_id=mcpfs`, `path=go.mod`
+- `fs_search` with `root_id=mcpfs`, `query=ResolveInsideRoot`, `glob=**/*.go`
+
+Example denial cases:
+
+- `fs_read` with `path=../go.mod` returns `path escapes root`
+- `fs_read` with an absolute path returns `absolute paths are not allowed`
+- `fs_read` with an excluded file returns `file is excluded`
 
 ## Notes
 

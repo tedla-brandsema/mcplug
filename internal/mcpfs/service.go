@@ -6,8 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
-	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -134,6 +135,7 @@ type StatResult struct {
 
 func (s *Service) Roots(ctx context.Context, args RootsArgs) (RootsResult, error) {
 	_ = ctx
+	_ = args
 
 	out := RootsResult{
 		Roots: make([]RootInfo, 0, len(s.order)),
@@ -166,15 +168,15 @@ func (s *Service) List(ctx context.Context, args ListArgs) (ListResult, error) {
 		requested = "."
 	}
 
-	abs, rel, err := s.resolve(root, requested)
+	rel, err := s.resolve(root, requested)
 	if err != nil {
 		s.logDenied("mcpfs.list", root.ID, requested, err.Error())
 		return ListResult{}, err
 	}
 
-	info, err := os.Stat(abs)
+	info, err := fs.Stat(root.ReadFS, rel)
 	if err != nil {
-		s.logDenied("mcpfs.list", root.ID, requested, err.Error())
+		s.logDenied("mcpfs.list", root.ID, rel, err.Error())
 		return ListResult{}, err
 	}
 	if !info.IsDir() {
@@ -203,37 +205,41 @@ func (s *Service) List(ctx context.Context, args ListArgs) (ListResult, error) {
 	}
 
 	if args.Recursive {
-		err = filepath.WalkDir(abs, func(pathAbs string, d os.DirEntry, walkErr error) error {
+		err = fs.WalkDir(root.ReadFS, rel, func(pathRel string, d fs.DirEntry, walkErr error) error {
 			if walkErr != nil {
 				return nil
 			}
 
-			if pathAbs == abs {
+			if pathRel == rel {
 				return nil
 			}
 
-			entryRel, err := root.Rel(pathAbs)
+			safeRel, err := s.resolve(root, pathRel)
 			if err != nil {
+				s.logDenied("mcpfs.list", root.ID, pathRel, err.Error())
+				if d.IsDir() {
+					return fs.SkipDir
+				}
 				return nil
 			}
 
 			if d.IsDir() {
-				if !root.Matcher.AllowDir(entryRel) {
-					return filepath.SkipDir
+				if !root.Matcher.AllowDir(safeRel) {
+					return fs.SkipDir
 				}
-			} else if !root.Matcher.AllowFile(entryRel) {
+			} else if !root.Matcher.AllowFile(safeRel) {
 				return nil
 			}
 
 			if len(result.Entries) >= maxEntries {
 				result.Truncated = true
 				if d.IsDir() {
-					return filepath.SkipDir
+					return fs.SkipDir
 				}
 				return nil
 			}
 
-			entry, err := makeEntry(entryRel, d)
+			entry, err := makeEntry(root, safeRel)
 			if err == nil {
 				result.Entries = append(result.Entries, entry)
 			}
@@ -241,8 +247,8 @@ func (s *Service) List(ctx context.Context, args ListArgs) (ListResult, error) {
 			return nil
 		})
 	} else {
-		var entries []os.DirEntry
-		entries, err = os.ReadDir(abs)
+		var entries []fs.DirEntry
+		entries, err = fs.ReadDir(root.ReadFS, rel)
 		if err == nil {
 			for _, d := range entries {
 				if len(result.Entries) >= maxEntries {
@@ -250,21 +256,23 @@ func (s *Service) List(ctx context.Context, args ListArgs) (ListResult, error) {
 					break
 				}
 
-				entryAbs := filepath.Join(abs, d.Name())
-				entryRel, err := root.Rel(entryAbs)
+				entryRel := joinRel(rel, d.Name())
+
+				safeRel, err := s.resolve(root, entryRel)
 				if err != nil {
+					s.logDenied("mcpfs.list", root.ID, entryRel, err.Error())
 					continue
 				}
 
 				if d.IsDir() {
-					if !root.Matcher.AllowDir(entryRel) {
+					if !root.Matcher.AllowDir(safeRel) {
 						continue
 					}
-				} else if !root.Matcher.AllowFile(entryRel) {
+				} else if !root.Matcher.AllowFile(safeRel) {
 					continue
 				}
 
-				entry, err := makeEntry(entryRel, d)
+				entry, err := makeEntry(root, safeRel)
 				if err == nil {
 					result.Entries = append(result.Entries, entry)
 				}
@@ -290,7 +298,7 @@ func (s *Service) Read(ctx context.Context, args ReadArgs) (ReadResult, error) {
 		return ReadResult{}, err
 	}
 
-	abs, rel, err := s.resolve(root, args.Path)
+	rel, err := s.resolve(root, args.Path)
 	if err != nil {
 		s.logDenied("mcpfs.read", root.ID, args.Path, err.Error())
 		return ReadResult{}, err
@@ -302,7 +310,7 @@ func (s *Service) Read(ctx context.Context, args ReadArgs) (ReadResult, error) {
 		return ReadResult{}, err
 	}
 
-	info, err := os.Stat(abs)
+	info, err := fs.Stat(root.ReadFS, rel)
 	if err != nil {
 		s.logDenied("mcpfs.read", root.ID, rel, err.Error())
 		return ReadResult{}, err
@@ -328,7 +336,7 @@ func (s *Service) Read(ctx context.Context, args ReadArgs) (ReadResult, error) {
 		limit = root.MaxFileBytes
 	}
 
-	f, err := os.Open(abs)
+	f, err := root.ReadFS.Open(rel)
 	if err != nil {
 		s.logDenied("mcpfs.read", root.ID, rel, err.Error())
 		return ReadResult{}, err
@@ -336,9 +344,24 @@ func (s *Service) Read(ctx context.Context, args ReadArgs) (ReadResult, error) {
 	defer f.Close()
 
 	if args.Offset > 0 {
-		if _, err := f.Seek(args.Offset, io.SeekStart); err != nil {
+		n, err := io.CopyN(io.Discard, f, args.Offset)
+		if err != nil && err != io.EOF {
 			s.logDenied("mcpfs.read", root.ID, rel, err.Error())
 			return ReadResult{}, err
+		}
+		if n < args.Offset {
+			data := []byte{}
+			result := ReadResult{
+				RootID:    root.ID,
+				Path:      rel,
+				Bytes:     0,
+				Size:      info.Size(),
+				Offset:    args.Offset,
+				Truncated: false,
+				Content:   string(data),
+			}
+			s.logAllowed("mcpfs.read", root.ID, rel, "bytes", result.Bytes, "truncated", result.Truncated)
+			return result, nil
 		}
 	}
 
@@ -391,47 +414,54 @@ func (s *Service) Search(ctx context.Context, args SearchArgs) (SearchResult, er
 		Matches: make([]SearchMatch, 0),
 	}
 
-	err = filepath.WalkDir(root.RealPath, func(abs string, d os.DirEntry, walkErr error) error {
+	err = fs.WalkDir(root.ReadFS, ".", func(pathRel string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return nil
 		}
 
-		if abs == root.RealPath {
+		if pathRel == "." {
 			return nil
 		}
 
-		rel, err := root.Rel(abs)
+		safeRel, err := s.resolve(root, pathRel)
 		if err != nil {
-			return nil
-		}
-
-		if d.IsDir() {
-			if !root.Matcher.AllowDir(rel) {
-				return filepath.SkipDir
+			s.logDenied("mcpfs.search", root.ID, pathRel, err.Error())
+			if d.IsDir() {
+				return fs.SkipDir
 			}
 			return nil
 		}
 
-		if !root.Matcher.AllowFile(rel) {
+		if d.IsDir() {
+			if !root.Matcher.AllowDir(safeRel) {
+				return fs.SkipDir
+			}
+			return nil
+		}
+
+		if !root.Matcher.AllowFile(safeRel) {
 			return nil
 		}
 
 		if glob != "" {
-			ok, _ := doublestar.PathMatch(glob, rel)
+			ok, _ := doublestar.PathMatch(glob, safeRel)
 			if !ok {
 				return nil
 			}
 		}
 
-		info, err := d.Info()
+		info, err := fs.Stat(root.ReadFS, safeRel)
 		if err != nil {
+			return nil
+		}
+		if info.IsDir() {
 			return nil
 		}
 		if info.Size() > root.MaxFileBytes {
 			return nil
 		}
 
-		matches, err := searchFile(abs, rel, args.Query, maxResults-len(result.Matches))
+		matches, err := searchFile(root, safeRel, args.Query, maxResults-len(result.Matches))
 		if err != nil {
 			return nil
 		}
@@ -440,7 +470,7 @@ func (s *Service) Search(ctx context.Context, args SearchArgs) (SearchResult, er
 
 		if len(result.Matches) >= maxResults {
 			result.Truncated = true
-			return filepath.SkipAll
+			return fs.SkipAll
 		}
 
 		return nil
@@ -463,13 +493,13 @@ func (s *Service) Stat(ctx context.Context, args StatArgs) (StatResult, error) {
 		return StatResult{}, err
 	}
 
-	abs, rel, err := s.resolve(root, args.Path)
+	rel, err := s.resolve(root, args.Path)
 	if err != nil {
 		s.logDenied("mcpfs.stat", root.ID, args.Path, err.Error())
 		return StatResult{}, err
 	}
 
-	info, err := os.Stat(abs)
+	info, err := fs.Stat(root.ReadFS, rel)
 	if err != nil {
 		s.logDenied("mcpfs.stat", root.ID, rel, err.Error())
 		return StatResult{}, err
@@ -518,22 +548,22 @@ func (s *Service) root(id string) (*Root, error) {
 	return root, nil
 }
 
-func (s *Service) resolve(root *Root, requested string) (string, string, error) {
+func (s *Service) resolve(root *Root, requested string) (string, error) {
 	abs, err := ResolveInsideRoot(root.RealPath, requested)
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
 
 	rel, err := root.Rel(abs)
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
 
-	return abs, rel, nil
+	return cleanFSRel(rel), nil
 }
 
-func makeEntry(rel string, d os.DirEntry) (Entry, error) {
-	info, err := d.Info()
+func makeEntry(root *Root, rel string) (Entry, error) {
+	info, err := fs.Stat(root.ReadFS, rel)
 	if err != nil {
 		return Entry{}, err
 	}
@@ -551,12 +581,12 @@ func makeEntry(rel string, d os.DirEntry) (Entry, error) {
 	}, nil
 }
 
-func searchFile(abs string, rel string, query string, remaining int) ([]SearchMatch, error) {
+func searchFile(root *Root, rel string, query string, remaining int) ([]SearchMatch, error) {
 	if remaining <= 0 {
 		return nil, nil
 	}
 
-	f, err := os.Open(abs)
+	f, err := root.ReadFS.Open(rel)
 	if err != nil {
 		return nil, err
 	}
@@ -590,6 +620,25 @@ func searchFile(abs string, rel string, query string, remaining int) ([]SearchMa
 	}
 
 	return matches, nil
+}
+
+func joinRel(base string, name string) string {
+	base = cleanFSRel(base)
+	name = path.Clean(filepath.ToSlash(name))
+
+	if base == "." {
+		return name
+	}
+
+	return path.Join(base, name)
+}
+
+func cleanFSRel(rel string) string {
+	rel = filepath.ToSlash(filepath.Clean(rel))
+	if rel == "" || rel == "." {
+		return "."
+	}
+	return strings.TrimPrefix(rel, "./")
 }
 
 func jsonString(v any) string {
