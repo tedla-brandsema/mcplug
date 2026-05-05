@@ -19,4 +19,15 @@ func RegisterGitTools(server *mcp.Server, svc *gitservice.Service) {
 		}
 		return toolJSON(result), result, nil
 	})
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "git_diff",
+		Description: "Return read-only git diff for a configured filesystem root. Optionally restrict to a relative path. Uses git diff or git diff --cached.",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args gitservice.DiffArgs) (*mcp.CallToolResult, gitservice.DiffResult, error) {
+		result, err := svc.Diff(ctx, args)
+		if err != nil {
+			return toolError(err), gitservice.DiffResult{}, nil
+		}
+		return toolJSON(result), result, nil
+	})
 }

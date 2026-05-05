@@ -73,3 +73,17 @@ func (s *Service) logDenied(event string, rootID string, path string, reason str
 		slog.String("reason", reason),
 	)
 }
+
+func (s *Service) resolve(root *core.Root, requested string) (string, error) {
+	abs, err := core.ResolveInsideRoot(root.RealPath, requested)
+	if err != nil {
+		return "", err
+	}
+
+	rel, err := root.Rel(abs)
+	if err != nil {
+		return "", err
+	}
+
+	return rel, nil
+}
