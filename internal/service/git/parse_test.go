@@ -82,8 +82,8 @@ func TestParseStatusUntracked(t *testing.T) {
 	if change.Staged {
 		t.Fatal("expected staged=false")
 	}
-	if change.Unstaged {
-		t.Fatal("expected unstaged=false for untracked marker")
+	if !change.Unstaged {
+		t.Fatal("expected unstaged=true for untracked file")
 	}
 	if change.Status != "untracked" {
 		t.Fatalf("status = %q, want untracked", change.Status)

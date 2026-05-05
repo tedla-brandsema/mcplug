@@ -79,7 +79,7 @@ func isStaged(index string) bool {
 }
 
 func isUnstaged(worktree string) bool {
-	return worktree != " " && worktree != "?" && worktree != "!"
+	return worktree != " " && worktree != "!"
 }
 
 func describeStatus(index string, worktree string) string {
