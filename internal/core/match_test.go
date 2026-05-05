@@ -1,4 +1,4 @@
-package mcpfs
+package core 
 
 import (
 	"log/slog"

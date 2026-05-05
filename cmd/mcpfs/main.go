@@ -25,24 +25,17 @@ func main() {
 		os.Exit(1)
 	}
 
-	svc, err := mcpfs.NewService(cfg, logger)
+	server, err := mcpfs.NewServer(cfg, logger)
 	if err != nil {
-		logger.Error("create service", "error", err)
+		logger.Error("create server", "error", err)
 		os.Exit(1)
 	}
-
-	server := mcp.NewServer(&mcp.Implementation{
-		Name:    cfg.Server.Name,
-		Version: cfg.Server.Version,
-	}, nil)
-
-	mcpfs.RegisterTools(server, svc)
 
 	switch cfg.Server.Transport {
 	case "stdio":
 		logger.Info("starting mcpfs", "transport", "stdio", "roots", len(cfg.Roots))
 
-		if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
+		if err := server.MCP.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
 			logger.Error("run server", "error", err)
 			os.Exit(1)
 		}
