@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"log/slog"
+	"net/http"
 	"os"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -31,12 +32,61 @@ func main() {
 		os.Exit(1)
 	}
 
+	ctx := context.Background()
+
 	switch cfg.Server.Transport {
 	case "stdio":
 		logger.Info("starting mcpfs", "transport", "stdio", "roots", len(cfg.Roots))
 
-		if err := server.MCP.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
-			logger.Error("run server", "error", err)
+		if err := server.MCP.Run(ctx, &mcp.StdioTransport{}); err != nil {
+			logger.Error("run stdio server", "error", err)
+			os.Exit(1)
+		}
+
+	case "http", "http_ngrok":
+		handler, err := server.HTTPHandler(mcpfs.HTTPOptions{
+			Path:         cfg.Server.Path,
+			AuthTokenEnv: cfg.Server.AuthTokenEnv,
+			RequireAuth:  cfg.Server.RequireAuth,
+			Logger:       logger,
+		})
+		if err != nil {
+			logger.Error("create http handler", "error", err)
+			os.Exit(1)
+		}
+
+		httpServer := &http.Server{
+			Addr:    cfg.Server.Addr,
+			Handler: handler,
+		}
+
+		if cfg.Server.Transport == "http_ngrok" {
+			mcpURL, err := mcpfs.StartNgrok(ctx, mcpfs.NgrokOptions{
+				Addr:   cfg.Server.Addr,
+				Path:   cfg.Server.Path,
+				URL:    cfg.Server.NgrokURL,
+				Logger: logger,
+			})
+			if err != nil {
+				logger.Error("start ngrok", "error", err)
+				os.Exit(1)
+			}
+
+			logger.Info("mcpfs public endpoint ready", "mcp_url", mcpURL)
+		}
+
+		logger.Info(
+			"starting mcpfs",
+			"transport", cfg.Server.Transport,
+			"addr", cfg.Server.Addr,
+			"path", cfg.Server.Path,
+			"require_auth", cfg.Server.RequireAuth,
+			"auth_token_env", cfg.Server.AuthTokenEnv,
+			"roots", len(cfg.Roots),
+		)
+
+		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Error("run http server", "error", err)
 			os.Exit(1)
 		}
 

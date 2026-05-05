@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 )
 
 type Mode string
@@ -19,9 +20,14 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Name      string `json:"name"`
-	Version   string `json:"version"`
-	Transport string `json:"transport"`
+	Name         string `json:"name"`
+	Version      string `json:"version"`
+	Transport    string `json:"transport"`
+	Addr         string `json:"addr,omitempty"`
+	Path         string `json:"path,omitempty"`
+	AuthTokenEnv string `json:"auth_token_env,omitempty"`
+	RequireAuth  bool   `json:"require_auth,omitempty"`
+	NgrokURL     string `json:"ngrok_url,omitempty"`
 }
 
 type RootConfig struct {
@@ -52,19 +58,40 @@ func Load(path string) (Config, error) {
 	return cfg, nil
 }
 
-func (c Config) Validate() error {
+func (c *Config) Validate() error {
 	if c.Server.Name == "" {
 		return fmt.Errorf("server.name is required")
 	}
 	if c.Server.Version == "" {
 		return fmt.Errorf("server.version is required")
 	}
+
 	if c.Server.Transport == "" {
-		return fmt.Errorf("server.transport is required")
+		c.Server.Transport = "stdio"
 	}
-	if c.Server.Transport != "stdio" {
+
+	switch c.Server.Transport {
+	case "stdio":
+		// No extra settings required.
+
+	case "http", "http_ngrok":
+		if c.Server.Addr == "" {
+			c.Server.Addr = "127.0.0.1:8080"
+		}
+		if c.Server.Path == "" {
+			c.Server.Path = "/mcp"
+		}
+		if !strings.HasPrefix(c.Server.Path, "/") {
+			return fmt.Errorf("server.path must start with /")
+		}
+		if c.Server.RequireAuth && c.Server.AuthTokenEnv == "" {
+			return fmt.Errorf("server.auth_token_env is required when server.require_auth is true")
+		}
+
+	default:
 		return fmt.Errorf("unsupported server.transport %q", c.Server.Transport)
 	}
+
 	if len(c.Roots) == 0 {
 		return fmt.Errorf("at least one root is required")
 	}
