@@ -5,8 +5,9 @@
     "transport": "http_ngrok",
     "addr": "127.0.0.1:8080",
     "path": "/mcp",
-    "require_auth": false,
-    "auth_token_env": "MCPFS_TOKEN",
+    "auth": {
+      "mode": "none"
+    },
     "ngrok_url": ""
   },
   "roots": [

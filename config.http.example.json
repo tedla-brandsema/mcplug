@@ -5,7 +5,10 @@
     "transport": "http",
     "addr": "127.0.0.1:8080",
     "path": "/mcp",
-    "auth_token_env": "MCPFS_TOKEN"
+    "auth": {
+      "mode": "bearer",
+      "token_env": "MCPFS_TOKEN"
+    }
   },
   "roots": [
     {
