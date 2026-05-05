@@ -1,0 +1,42 @@
+{
+  "server": {
+    "name": "mcpfs",
+    "version": "0.1.0",
+    "transport": "stdio"
+  },
+  "roots": [
+    {
+      "id": "mcpfs",
+      "path": ".",
+      "mode": "read",
+      "include": [
+        "**/*.go",
+        "**/*.md",
+        "**/*.mod",
+        "**/*.sum",
+        "**/*.json",
+        "**/*.yaml",
+        "**/*.yml"
+      ],
+      "exclude": [
+        "**/.git/**",
+        "**/.idea/**",
+        "**/.vscode/**",
+        "**/node_modules/**",
+        "**/vendor/**",
+        "**/tmp/**",
+        "**/.env",
+        "**/.env.*",
+        "**/*secret*",
+        "**/*credential*",
+        "**/*.pem",
+        "**/*.key",
+        "**/*.p12",
+        "**/*.sqlite",
+        "**/*.db"
+      ],
+      "use_gitignore": true,
+      "max_file_bytes": 262144
+    }
+  ]
+}
