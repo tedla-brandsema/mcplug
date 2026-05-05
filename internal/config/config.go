@@ -7,6 +7,20 @@ import (
 	"strings"
 )
 
+type AuthMode string
+
+const (
+	AuthModeNone   AuthMode = "none"
+	AuthModeBearer AuthMode = "bearer"
+)
+
+type AuthConfig struct {
+	Mode AuthMode `json:"mode,omitempty"`
+
+	// Used when mode is "bearer".
+	TokenEnv string `json:"token_env,omitempty"`
+}
+
 type Mode string
 
 const (
@@ -20,14 +34,21 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Name         string `json:"name"`
-	Version      string `json:"version"`
-	Transport    string `json:"transport"`
-	Addr         string `json:"addr,omitempty"`
-	Path         string `json:"path,omitempty"`
+	Name      string `json:"name"`
+	Version   string `json:"version"`
+	Transport string `json:"transport"`
+	Addr      string `json:"addr,omitempty"`
+	Path      string `json:"path,omitempty"`
+
+	Auth *AuthConfig `json:"auth,omitempty"`
+
+	// Deprecated: use auth.mode instead.
+	RequireAuth bool `json:"require_auth,omitempty"`
+
+	// Deprecated: use auth.token_env instead.
 	AuthTokenEnv string `json:"auth_token_env,omitempty"`
-	RequireAuth  bool   `json:"require_auth,omitempty"`
-	NgrokURL     string `json:"ngrok_url,omitempty"`
+
+	NgrokURL string `json:"ngrok_url,omitempty"`
 }
 
 type RootConfig struct {
@@ -84,8 +105,8 @@ func (c *Config) Validate() error {
 		if !strings.HasPrefix(c.Server.Path, "/") {
 			return fmt.Errorf("server.path must start with /")
 		}
-		if c.Server.RequireAuth && c.Server.AuthTokenEnv == "" {
-			return fmt.Errorf("server.auth_token_env is required when server.require_auth is true")
+		if err := c.Server.normalizeAuth(); err != nil {
+			return err
 		}
 
 	default:
@@ -122,4 +143,45 @@ func (c *Config) Validate() error {
 	}
 
 	return nil
+}
+
+func (s *ServerConfig) normalizeAuth() error {
+	if s.Auth == nil {
+		if s.RequireAuth {
+			s.Auth = &AuthConfig{
+				Mode:     AuthModeBearer,
+				TokenEnv: s.AuthTokenEnv,
+			}
+		} else {
+			s.Auth = &AuthConfig{
+				Mode: AuthModeNone,
+			}
+		}
+	}
+
+	if s.Auth.Mode == "" {
+		if s.RequireAuth {
+			s.Auth.Mode = AuthModeBearer
+		} else {
+			s.Auth.Mode = AuthModeNone
+		}
+	}
+
+	if s.Auth.Mode == AuthModeBearer && s.Auth.TokenEnv == "" {
+		s.Auth.TokenEnv = s.AuthTokenEnv
+	}
+
+	switch s.Auth.Mode {
+	case AuthModeNone:
+		return nil
+
+	case AuthModeBearer:
+		if s.Auth.TokenEnv == "" {
+			return fmt.Errorf("server.auth.token_env is required when server.auth.mode is %q", AuthModeBearer)
+		}
+		return nil
+
+	default:
+		return fmt.Errorf("unsupported server.auth.mode %q", s.Auth.Mode)
+	}
 }

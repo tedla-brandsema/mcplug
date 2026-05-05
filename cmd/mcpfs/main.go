@@ -9,6 +9,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/tedla-brandsema/mcpfs/internal/auth"
 	"github.com/tedla-brandsema/mcpfs/internal/config"
 	"github.com/tedla-brandsema/mcpfs/internal/mcpfs"
 )
@@ -44,11 +45,19 @@ func main() {
 		}
 
 	case "http", "http_ngrok":
+		authenticator, err := auth.New(auth.Config{
+			Mode:     string(cfg.Server.Auth.Mode),
+			TokenEnv: cfg.Server.Auth.TokenEnv,
+		})
+		if err != nil {
+			logger.Error("create authenticator", "error", err)
+			os.Exit(1)
+		}
+
 		handler, err := server.HTTPHandler(mcpfs.HTTPOptions{
-			Path:         cfg.Server.Path,
-			AuthTokenEnv: cfg.Server.AuthTokenEnv,
-			RequireAuth:  cfg.Server.RequireAuth,
-			Logger:       logger,
+			Path:          cfg.Server.Path,
+			Authenticator: authenticator,
+			Logger:        logger,
 		})
 		if err != nil {
 			logger.Error("create http handler", "error", err)
@@ -80,8 +89,7 @@ func main() {
 			"transport", cfg.Server.Transport,
 			"addr", cfg.Server.Addr,
 			"path", cfg.Server.Path,
-			"require_auth", cfg.Server.RequireAuth,
-			"auth_token_env", cfg.Server.AuthTokenEnv,
+			"auth_mode", cfg.Server.Auth.Mode,
 			"roots", len(cfg.Roots),
 		)
 

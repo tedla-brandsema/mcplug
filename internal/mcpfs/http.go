@@ -1,21 +1,19 @@
 package mcpfs
 
 import (
-	"crypto/subtle"
-	"fmt"
+	"errors"
 	"log/slog"
 	"net/http"
-	"os"
-	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/tedla-brandsema/mcpfs/internal/auth"
 )
 
 type HTTPOptions struct {
-	Path         string
-	AuthTokenEnv string
-	RequireAuth  bool
-	Logger       *slog.Logger
+	Path          string
+	Authenticator auth.Authenticator
+	Logger        *slog.Logger
 }
 
 func (s *Server) HTTPHandler(opts HTTPOptions) (http.Handler, error) {
@@ -33,20 +31,9 @@ func (s *Server) HTTPHandler(opts HTTPOptions) (http.Handler, error) {
 		return s.MCP
 	}, nil)
 
-	var protectedMCPHandler http.Handler = mcpHandler
-
-	if opts.RequireAuth {
-		if opts.AuthTokenEnv == "" {
-			return nil, fmt.Errorf("auth token env var name is required")
-		}
-
-		token := os.Getenv(opts.AuthTokenEnv)
-		if token == "" {
-			return nil, fmt.Errorf("auth token env var %s is empty or unset", opts.AuthTokenEnv)
-		}
-
-		protectedMCPHandler = bearerAuth(token, logger, mcpHandler)
-	} else {
+	authenticator := opts.Authenticator
+	if authenticator == nil {
+		authenticator = auth.None()
 		logger.Warn(
 			"http auth disabled",
 			"path", path,
@@ -56,7 +43,7 @@ func (s *Server) HTTPHandler(opts HTTPOptions) (http.Handler, error) {
 
 	mux := http.NewServeMux()
 
-	mux.Handle(path, protectedMCPHandler)
+	mux.Handle(path, authenticateHTTP(authenticator, logger, mcpHandler))
 
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -66,33 +53,27 @@ func (s *Server) HTTPHandler(opts HTTPOptions) (http.Handler, error) {
 	return mux, nil
 }
 
-func bearerAuth(expectedToken string, logger *slog.Logger, next http.Handler) http.Handler {
+func authenticateHTTP(authenticator auth.Authenticator, logger *slog.Logger, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		got := req.Header.Get("Authorization")
-		const prefix = "Bearer "
+		principal, err := authenticator.Authenticate(req.Context(), req)
+		if err != nil {
+			var unauthorized *auth.UnauthorizedError
+			status := http.StatusInternalServerError
+			if errors.As(err, &unauthorized) {
+				status = http.StatusUnauthorized
+			}
 
-		if !strings.HasPrefix(got, prefix) {
 			logger.Warn(
 				"http auth denied",
-				"reason", "missing bearer token",
+				"error", err,
 				"remote_addr", req.RemoteAddr,
 				"path", req.URL.Path,
 			)
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			http.Error(w, http.StatusText(status), status)
 			return
 		}
 
-		gotToken := strings.TrimPrefix(got, prefix)
-		if subtle.ConstantTimeCompare([]byte(gotToken), []byte(expectedToken)) != 1 {
-			logger.Warn(
-				"http auth denied",
-				"reason", "invalid bearer token",
-				"remote_addr", req.RemoteAddr,
-				"path", req.URL.Path,
-			)
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
-			return
-		}
+		_ = principal
 
 		next.ServeHTTP(w, req)
 	})
