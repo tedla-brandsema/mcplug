@@ -29,9 +29,7 @@
 
   Suggested output should include both structured tree data and a compact text rendering for LLM-friendly context.
 
-## IN PROGRESS
-
-* [ ] Add `git_show`.
+* [x] Add `git_show`.
   Return metadata and diff/body for a specific commit, optionally scoped to a path.
 
   Suggested input:
@@ -50,9 +48,7 @@
   Deny ambiguous or option-like revisions where appropriate.
   Use explicit git argument separation.
 
-## BACKLOG
-
-* [ ] Add tests for `git_show`.
+* [x] Add tests for `git_show`.
   Cover:
 
   * normal commit lookup
@@ -62,7 +58,7 @@
   * revision/path argument safety
   * behavior outside a git repository
 
-* [ ] Add tests for `fs_tree`.
+* [x] Add tests for `fs_tree`.
   Cover:
 
   * max depth
@@ -73,6 +69,12 @@
   * symlink escape protection
   * root escape rejection
   * deterministic ordering
+
+## IN PROGRESS
+
+
+
+## BACKLOG
 
 * [ ] Add README documentation for `fs_tree` and `git_show`.
   Include the tools in the MCP tools table and add example workflow snippets.

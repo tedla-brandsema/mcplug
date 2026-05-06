@@ -38,8 +38,22 @@ func RegisterGitTools(server *mcp.Server, svc *gitservice.Service) {
 	})
 
 	mcp.AddTool(server, &mcp.Tool{
+		Name:        "git_show",
+		Description: "Return read-only metadata and patch for a single git commit. Optionally restrict the patch to a relative path.",
+		Annotations: &mcp.ToolAnnotations{
+			ReadOnlyHint: true,
+		},
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args gitservice.ShowArgs) (*mcp.CallToolResult, gitservice.ShowResult, error) {
+		result, err := svc.Show(ctx, args)
+		if err != nil {
+			return toolError(err), gitservice.ShowResult{}, nil
+		}
+		return toolJSON(result), result, nil
+	})
+
+	mcp.AddTool(server, &mcp.Tool{
 		Name:        "git_log",
-		Description: "Return recent git commit history for a configured filesystem root. Optionally restrict to a relative path.",
+		Description: "Return recent git commit history for a configured filesystem root. Optionally restrict to a path.",
 		Annotations: &mcp.ToolAnnotations{
 			ReadOnlyHint: true,
 		},
