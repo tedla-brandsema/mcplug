@@ -146,6 +146,19 @@
   * `duration_ms`
   * `warnings`
 
+* [x] Add `project_overview`.
+  Return a compact generic summary of a root:
+
+  * root id
+  * top-level tree
+  * git status summary
+  * recent commits
+  * detected important files
+  * detected package/module files
+  * test/config/documentation file counts
+
+  This should be heuristic and language-agnostic.
+
 ## IN PROGRESS
 
 
@@ -163,19 +176,6 @@
   * references
 
   These will be useful before adding LSP support.
-
-* [ ] Add `project_overview`.
-  Return a compact generic summary of a root:
-
-  * root id
-  * top-level tree
-  * git status summary
-  * recent commits
-  * detected important files
-  * detected package/module files
-  * test/config/documentation file counts
-
-  This should be heuristic and language-agnostic.
 
 * [ ] Add optional command execution framework for explicitly allowed read-only/dev commands.
   Keep disabled by default.

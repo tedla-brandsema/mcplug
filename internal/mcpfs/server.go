@@ -10,12 +10,14 @@ import (
 	"github.com/tedla-brandsema/mcpfs/internal/core"
 	fsservice "github.com/tedla-brandsema/mcpfs/internal/service/fs"
 	gitservice "github.com/tedla-brandsema/mcpfs/internal/service/git"
+	projectservice "github.com/tedla-brandsema/mcpfs/internal/service/project"
 )
 
 type Server struct {
-	MCP *mcp.Server
-	FS  *fsservice.Service
-	Git *gitservice.Service
+	MCP     *mcp.Server
+	FS      *fsservice.Service
+	Git     *gitservice.Service
+	Project *projectservice.Service
 }
 
 func NewServer(cfg config.Config, logger *slog.Logger) (*Server, error) {
@@ -34,6 +36,10 @@ func NewServer(cfg config.Config, logger *slog.Logger) (*Server, error) {
 
 	fsSvc := fsservice.New(roots, logger)
 	gitSvc := gitservice.New(roots, logger)
+	projectSvc, err := projectservice.New(fsSvc, gitSvc, logger)
+	if err != nil {
+		return nil, err
+	}
 
 	mcpServer := mcp.NewServer(&mcp.Implementation{
 		Name:    cfg.Server.Name,
@@ -42,10 +48,12 @@ func NewServer(cfg config.Config, logger *slog.Logger) (*Server, error) {
 
 	RegisterFSTools(mcpServer, fsSvc)
 	RegisterGitTools(mcpServer, gitSvc)
+	RegisterProjectTools(mcpServer, projectSvc)
 
 	return &Server{
-		MCP: mcpServer,
-		FS:  fsSvc,
-		Git: gitSvc,
+		MCP:     mcpServer,
+		FS:      fsSvc,
+		Git:     gitSvc,
+		Project: projectSvc,
 	}, nil
 }
