@@ -66,6 +66,20 @@ func RegisterFSTools(server *mcp.Server, svc *fsservice.Service) {
 	})
 
 	mcp.AddTool(server, &mcp.Tool{
+		Name:        "fs_read_lines",
+		Description: "Read a 1-based inclusive line range from a file under a configured root. Honors explicit excludes, .gitignore rules, symlink checks, and file size limits.",
+		Annotations: &mcp.ToolAnnotations{
+			ReadOnlyHint: true,
+		},
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args fsservice.ReadLinesArgs) (*mcp.CallToolResult, fsservice.ReadLinesResult, error) {
+		result, err := svc.ReadLines(ctx, args)
+		if err != nil {
+			return toolError(err), fsservice.ReadLinesResult{}, nil
+		}
+		return toolJSON(result), result, nil
+	})
+
+	mcp.AddTool(server, &mcp.Tool{
 		Name:        "fs_search",
 		Description: "Search text files under a configured filesystem root using a case-sensitive substring query. Honors explicit excludes and .gitignore rules.",
 		Annotations: &mcp.ToolAnnotations{

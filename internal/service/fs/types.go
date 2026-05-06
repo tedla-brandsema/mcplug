@@ -77,6 +77,27 @@ type ReadResult struct {
 	Content   string `json:"content"`
 }
 
+type ReadLinesArgs struct {
+	RootID    string `json:"root_id" jsonschema:"configured root id"`
+	Path      string `json:"path" jsonschema:"relative file path inside the root"`
+	StartLine int    `json:"start_line,omitempty" jsonschema:"1-based inclusive start line; defaults to 1"`
+	EndLine   int    `json:"end_line,omitempty" jsonschema:"1-based inclusive end line; defaults to start_line plus the maximum line window"`
+}
+
+type ReadLine struct {
+	Number int    `json:"number"`
+	Text   string `json:"text"`
+}
+
+type ReadLinesResult struct {
+	RootID    string     `json:"root_id"`
+	Path      string     `json:"path"`
+	StartLine int        `json:"start_line"`
+	EndLine   int        `json:"end_line"`
+	Lines     []ReadLine `json:"lines"`
+	Truncated bool       `json:"truncated"`
+}
+
 type SearchArgs struct {
 	RootID     string `json:"root_id" jsonschema:"configured root id"`
 	Query      string `json:"query" jsonschema:"case-sensitive substring query"`

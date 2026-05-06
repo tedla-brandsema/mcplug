@@ -77,14 +77,30 @@
   Several tools already need bounded output.
   Centralize max bytes / max entries behavior so future tools behave consistently.
 
-* [ ] Add a shared path-scoped git helper.
+* [x] Add a shared path-scoped git helper.
   `git_diff`, `git_log`, and `git_show` should use a common helper for:
 
   * validating optional paths
   * resolving paths inside roots
   * appending `-- path`
   * handling git command limits/errors
-  
+ 
+* [x] Add `fs_read_lines`.
+  Read a specific line range from a file.
+
+  Suggested input:
+
+  ```json
+  {
+    "root_id": "project",
+    "path": "internal/auth/oidc.go",
+    "start_line": 40,
+    "end_line": 90
+  }
+  ```
+
+  Useful when diagnostics, search results, or blame results point to specific ranges. 
+
 ## IN PROGRESS
 
 
@@ -123,22 +139,6 @@
   ```
 
   Include safeguards for invalid regexes and expensive searches.
-
-* [ ] Add `fs_read_lines`.
-  Read a specific line range from a file.
-
-  Suggested input:
-
-  ```json
-  {
-    "root_id": "project",
-    "path": "internal/auth/oidc.go",
-    "start_line": 40,
-    "end_line": 90
-  }
-  ```
-
-  Useful when diagnostics, search results, or blame results point to specific ranges.
 
 * [ ] Add stable location/range types.
   Introduce shared internal/output types for:
