@@ -1,8 +1,8 @@
 # mcpfs
 
-`mcpfs` is a small, read-only Model Context Protocol filesystem server.
+`mcpfs` is a small, read-only Model Context Protocol filesystem server for working with local project folders from an MCP client.
 
-It lets an MCP client inspect explicitly configured project folders without uploading files or copying snippets into chat. It is designed for live developer context: list files, view bounded project trees, read files, search source, inspect Git status, view diffs, inspect commits, and review recent commit history.
+It lets an MCP client inspect explicitly configured project roots without uploading files or manually copying snippets into chat. It is designed for live developer context: list files, view bounded project trees, read files and line ranges, search source, inspect Git status and diffs, review commits, inspect blame, and get compact project overviews.
 
 The core idea is simple:
 
@@ -12,12 +12,15 @@ configured roots
   → .gitignore-aware matcher
   → read-only filesystem tools
   → read-only git inspection tools
+  → project overview tools
   → MCP
 ```
 
 ## Features
 
 * Explicit JSON-configured filesystem roots.
+* Global config bootstrap from an embedded default config.
+* Project-local config support through `.mcpfs/project.cfg.json`.
 * Read-only filesystem access.
 * `.gitignore` support.
 * Additional include/exclude glob rules.
@@ -32,12 +35,12 @@ configured roots
 * HTTP auth modes: `none`, `bearer`, and `oidc`.
 * OIDC/JWT validation using JWKS, issuer, audience, expiry, not-before, and identity allowlists.
 * MCP tool annotations mark exposed tools as read-only.
-* Read-only Git inspection tools:
+* CLI project setup and root management:
 
-  * `git_status`
-  * `git_diff`
-  * `git_show`
-  * `git_log`
+  * `mcpfs init`
+  * `mcpfs project add`
+  * `mcpfs project rm`
+  * `mcpfs project ls`
 
 ## MCP tools
 
@@ -45,14 +48,16 @@ All exposed tools are read-only and are annotated with MCP `readOnlyHint`.
 
 Filesystem tools:
 
-| Tool        | Description                                                                                       |
-| ----------- | ------------------------------------------------------------------------------------------------- |
-| `fs_roots`  | List configured filesystem roots.                                                                 |
-| `fs_list`   | List files and directories under a configured root.                                               |
-| `fs_tree`   | Return a bounded tree view under a configured root, including structured entries and text output. |
-| `fs_read`   | Read a file under a configured root.                                                              |
-| `fs_search` | Search text files under a configured root.                                                        |
-| `fs_stat`   | Return metadata for a file or directory.                                                          |
+| Tool              | Description                                                                                 |
+| ----------------- | ------------------------------------------------------------------------------------------- |
+| `fs_roots`        | List configured filesystem roots and their read modes. Does not expose absolute host paths. |
+| `fs_list`         | List files under a configured root. Honors explicit excludes and `.gitignore` rules.        |
+| `fs_tree`         | Return a bounded tree view with structured entries and compact text output.                 |
+| `fs_read`         | Read a bounded file from a configured root.                                                 |
+| `fs_read_lines`   | Read a 1-based inclusive line range from a file.                                            |
+| `fs_search`       | Search text files using a case-sensitive substring query.                                   |
+| `fs_search_regex` | Search text files using a regular expression query.                                         |
+| `fs_stat`         | Return metadata for a file or directory.                                                    |
 
 Git tools:
 
@@ -60,8 +65,15 @@ Git tools:
 | ------------ | ------------------------------------------------------------------------------------------------------------------- |
 | `git_status` | Return `git status --porcelain=v1 -b` as structured JSON.                                                           |
 | `git_diff`   | Return a diff for the whole root or a specific path. Supports staged diffs and synthetic diffs for untracked files. |
-| `git_show`   | Return metadata and patch output for a single commit, optionally scoped to a path.                                  |
+| `git_blame`  | Return read-only blame information for a file, optionally scoped to a 1-based inclusive line range.                 |
+| `git_show`   | Return metadata and bounded patch output for a single commit, optionally scoped to a path.                          |
 | `git_log`    | Return recent commit history, optionally scoped to a path.                                                          |
+
+Project tools:
+
+| Tool               | Description                                                                                      |
+| ------------------ | ------------------------------------------------------------------------------------------------ |
+| `project_overview` | Return a compact project summary: tree, important files, counts, git status, and recent commits. |
 
 ## Security model
 
@@ -98,9 +110,170 @@ go test ./...
 go build -o ./bin/mcpfs ./cmd/mcpfs
 ```
 
+## Quick start
+
+Create a project-local config in the current directory:
+
+```bash
+mcpfs init
+```
+
+Or initialize a project elsewhere:
+
+```bash
+mcpfs init -path /path/to/project
+```
+
+Add the current directory to the default global MCPFS config:
+
+```bash
+mcpfs project add
+```
+
+Add a specific project directory:
+
+```bash
+mcpfs project add -path /path/to/project
+```
+
+List configured project roots:
+
+```bash
+mcpfs project ls
+```
+
+Run the server with the default global config:
+
+```bash
+mcpfs
+```
+
+The default global config is created automatically when missing at:
+
+```text
+os.UserConfigDir()/mcpfs/mcpfs.cfg.json
+```
+
+The embedded default global config starts with STDIO transport and no roots:
+
+```json
+{
+  "server": {
+    "name": "mcpfs",
+    "version": "0.3.0",
+    "transport": "stdio",
+    "auth": {
+      "mode": "none"
+    }
+  },
+  "roots": []
+}
+```
+
+## CLI commands
+
+### `mcpfs`
+
+Run the MCP server.
+
+```bash
+mcpfs
+mcpfs -config /path/to/mcpfs.cfg.json
+```
+
+If `-config` is omitted, `mcpfs` loads or creates the default global config at `os.UserConfigDir()/mcpfs/mcpfs.cfg.json`.
+
+If `-config` is provided, only that explicit path is loaded.
+
+### `mcpfs init`
+
+Create `.mcpfs/project.cfg.json` for a project using the embedded default project registry config.
+
+```bash
+mcpfs init
+mcpfs init -path /path/to/project
+```
+
+Flags:
+
+| Flag    | Description                                           |
+| ------- | ----------------------------------------------------- |
+| `-path` | Project directory. Defaults to the current directory. |
+
+`mcpfs init` does not add the project to any MCPFS server config. It only writes the project-local config if it does not already exist.
+
+### `mcpfs project add`
+
+Add a project root to an MCPFS config.
+
+```bash
+mcpfs project add
+mcpfs project add -path /path/to/project
+mcpfs project add -id my-project
+mcpfs project add -cfg /path/to/mcpfs.cfg.json
+mcpfs project add -path /path/to/project -id my-project -cfg /path/to/mcpfs.cfg.json
+```
+
+Flags:
+
+| Flag    | Description                                                      |
+| ------- | ---------------------------------------------------------------- |
+| `-path` | Project directory. Defaults to the current directory.            |
+| `-id`   | Root id to add. Defaults to the project directory name.          |
+| `-cfg`  | MCPFS config path to update. Defaults to the global user config. |
+
+The added root uses read mode, `**/*` includes, the standard sensitive-file excludes, `.gitignore` support, and the default max file size.
+
+### `mcpfs project rm`
+
+Remove a project root from an MCPFS config by root id.
+
+```bash
+mcpfs project rm
+mcpfs project rm -path /path/to/project
+mcpfs project rm -id my-project
+mcpfs project rm -cfg /path/to/mcpfs.cfg.json
+mcpfs project rm -path /path/to/project -id my-project -cfg /path/to/mcpfs.cfg.json
+```
+
+Flags:
+
+| Flag    | Description                                                                          |
+| ------- | ------------------------------------------------------------------------------------ |
+| `-path` | Project directory used to derive the default root id. Defaults to current directory. |
+| `-id`   | Root id to remove. Defaults to the project directory name.                           |
+| `-cfg`  | MCPFS config path to update. Defaults to the global user config.                     |
+
+`project rm` removes by id. If the project was added with a custom id, pass that id explicitly.
+
+### `mcpfs project ls`
+
+List project roots configured in an MCPFS config.
+
+```bash
+mcpfs project ls
+mcpfs project ls -cfg /path/to/mcpfs.cfg.json
+```
+
+Flags:
+
+| Flag   | Description                                                    |
+| ------ | -------------------------------------------------------------- |
+| `-cfg` | MCPFS config path to read. Defaults to the global user config. |
+
+Output is a simple table with root id, mode, and path.
+
 ## STDIO usage
 
 STDIO is useful for local MCP clients and MCP Inspector.
+
+Run with the default global config:
+
+```bash
+mcpfs
+```
+
+Run with an explicit config:
 
 ```bash
 ./bin/mcpfs -config config.example.json
@@ -118,7 +291,31 @@ go run ./cmd/mcpfs -config config.example.json
 bunx @modelcontextprotocol/inspector
 ```
 
-Use:
+Using the default global config:
+
+```text
+Transport Type:
+STDIO
+
+Command:
+/path/to/mcpfs/bin/mcpfs
+```
+
+Using an explicit config:
+
+```text
+Transport Type:
+STDIO
+
+Command:
+/path/to/mcpfs/bin/mcpfs
+
+Arguments:
+-config
+/path/to/mcpfs/config.example.json
+```
+
+Or with `go run`:
 
 ```text
 Transport Type:
@@ -134,20 +331,6 @@ run
 /path/to/mcpfs/config.example.json
 ```
 
-Or with a built binary:
-
-```text
-Transport Type:
-STDIO
-
-Command:
-/path/to/mcpfs/bin/mcpfs
-
-Arguments:
--config
-/path/to/mcpfs/config.example.json
-```
-
 ## HTTP usage
 
 HTTP transport is useful when the MCP client needs to connect to a network endpoint.
@@ -158,7 +341,7 @@ Example config using bearer auth:
 {
   "server": {
     "name": "mcpfs",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "transport": "http",
     "addr": "127.0.0.1:8080",
     "path": "/mcp",
@@ -173,13 +356,7 @@ Example config using bearer auth:
       "path": "/path/to/project",
       "mode": "read",
       "include": [
-        "**/*.go",
-        "**/*.md",
-        "**/*.mod",
-        "**/*.sum",
-        "**/*.json",
-        "**/*.yaml",
-        "**/*.yml"
+        "**/*"
       ],
       "exclude": [
         "**/.git/**",
@@ -232,7 +409,7 @@ Example config:
 {
   "server": {
     "name": "mcpfs",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "transport": "http",
     "addr": "127.0.0.1:8080",
     "path": "/mcp",
@@ -316,6 +493,17 @@ You can also run ngrok with bearer or OIDC auth by changing the `auth` block in 
 
 ## Configuration
 
+There are two config layers:
+
+| Config file               | Purpose                                                                                                     |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `mcpfs.cfg.json`          | Server settings and configured roots. The default global path is `os.UserConfigDir()/mcpfs/mcpfs.cfg.json`. |
+| `.mcpfs/project.cfg.json` | Project-local overview detection rules for a configured root.                                               |
+
+### Global MCPFS config
+
+The global config controls server settings and roots.
+
 Root config fields:
 
 | Field            | Description                                                        |
@@ -348,6 +536,40 @@ Server config fields:
 
 Legacy `require_auth` and `auth_token_env` fields are still accepted for compatibility, but new configs should use `auth.mode`.
 
+### Project-local config
+
+A project-local config lives at:
+
+```text
+.mcpfs/project.cfg.json
+```
+
+It customizes project overview detection rules for that configured root. When present, it is merged with the global/user project registry for that root only. This prevents project-local rules from leaking across multi-root workspaces.
+
+Default project-local config is embedded in the binary and can be written with:
+
+```bash
+mcpfs init
+```
+
+Project-local config shape:
+
+```json
+{
+  "project": {
+    "important_files": ["README.md", "TODO.md", "go.mod"],
+    "source_extensions": [".go", ".ts", ".py"],
+    "test_patterns": ["*_test.go", "*test*", "*spec*"],
+    "documentation_extensions": [".md", ".rst", ".adoc", ".txt"],
+    "documentation_files": ["README", "LICENSE", "COPYING"],
+    "configuration_extensions": [".json", ".yaml", ".yml", ".toml", ".ini", ".env", ".xml"],
+    "configuration_files": ["Dockerfile", "Makefile", "go.mod", "go.sum", "package.json"]
+  }
+}
+```
+
+Rule lists in the project-local file override the corresponding global/user project registry list when non-empty. Empty local lists inherit the base list.
+
 ### Auth examples
 
 No auth:
@@ -379,7 +601,7 @@ OIDC auth:
 }
 ```
 
-## Example workflows
+## Example MCP workflows
 
 Ask for the configured roots:
 
@@ -417,7 +639,31 @@ Call `fs_tree`.
 
 `fs_tree` returns a flat structured `entries` list and a compact `text` tree. The structured entries include path, name, type, depth, parent path, size, and modification time.
 
-Search code:
+Read a file:
+
+```json
+{
+  "root_id": "project",
+  "path": "internal/core/resolve.go"
+}
+```
+
+Call `fs_read`.
+
+Read a line range:
+
+```json
+{
+  "root_id": "project",
+  "path": "internal/core/resolve.go",
+  "start_line": 1,
+  "end_line": 80
+}
+```
+
+Call `fs_read_lines`.
+
+Search code with a substring:
 
 ```json
 {
@@ -429,16 +675,33 @@ Search code:
 
 Call `fs_search`.
 
-Read a file:
+Search code with a regex:
 
 ```json
 {
   "root_id": "project",
-  "path": "internal/core/resolve.go"
+  "query": "func\\s+Resolve",
+  "glob": "**/*.go",
+  "case_sensitive": true,
+  "max_results": 50
 }
 ```
 
-Call `fs_read`.
+Call `fs_search_regex`.
+
+Get a project overview:
+
+```json
+{
+  "root_id": "project",
+  "path": ".",
+  "max_depth": 3,
+  "max_entries": 500,
+  "recent_commits": 5
+}
+```
+
+Call `project_overview`.
 
 Check working tree state:
 
@@ -460,6 +723,19 @@ Inspect a changed file:
 ```
 
 Call `git_diff`.
+
+Inspect blame for a line range:
+
+```json
+{
+  "root_id": "project",
+  "path": "internal/service/project/overview.go",
+  "start_line": 1,
+  "end_line": 80
+}
+```
+
+Call `git_blame`.
 
 Inspect a commit:
 
@@ -513,7 +789,13 @@ Build:
 go build -o ./bin/mcpfs ./cmd/mcpfs
 ```
 
-Run with STDIO:
+Run with STDIO and default global config:
+
+```bash
+./bin/mcpfs
+```
+
+Run with STDIO and explicit config:
 
 ```bash
 ./bin/mcpfs -config config.example.json
