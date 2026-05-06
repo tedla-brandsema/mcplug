@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"strings"
+
+	"github.com/tedla-brandsema/mcpfs/internal/limits"
 )
 
 const showCommitFormat = "%H%x00%h%x00%an%x00%ae%x00%ad%x00%s%x00%b"
@@ -21,13 +23,7 @@ func (s *Service) Show(ctx context.Context, args ShowArgs) (ShowResult, error) {
 		return ShowResult{}, err
 	}
 
-	maxBytes := args.MaxBytes
-	if maxBytes <= 0 {
-		maxBytes = defaultGitOutputLimit
-	}
-	if maxBytes > defaultGitOutputLimit {
-		maxBytes = defaultGitOutputLimit
-	}
+	maxBytes := limits.ClampInt(args.MaxBytes, defaultGitOutputLimit, defaultGitOutputLimit)
 
 	commitHash, err := s.resolveCommit(ctx, root.RealPath, rev)
 	if err != nil {
@@ -75,7 +71,7 @@ func (s *Service) Show(ctx context.Context, args ShowArgs) (ShowResult, error) {
 	}
 
 	diff := strings.TrimLeft(stdout, "\r\n")
-	diff, diffTruncated := capStringBytes(diff, maxBytes)
+	diff, diffTruncated := limits.CapStringBytes(diff, maxBytes)
 	truncated = truncated || diffTruncated
 
 	result := ShowResult{
@@ -160,16 +156,6 @@ func (s *Service) showCommitMetadata(ctx context.Context, repoPath string, commi
 	}
 
 	return commit, nil
-}
-
-func capStringBytes(s string, maxBytes int) (string, bool) {
-	if maxBytes <= 0 {
-		return "", len(s) > 0
-	}
-	if len(s) <= maxBytes {
-		return s, false
-	}
-	return s[:maxBytes], true
 }
 
 func ParseShowCommit(output string) (ShowCommit, error) {

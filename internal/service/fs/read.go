@@ -12,6 +12,7 @@ import (
 	"github.com/bmatcuk/doublestar/v4"
 
 	"github.com/tedla-brandsema/mcpfs/internal/core"
+	"github.com/tedla-brandsema/mcpfs/internal/limits"
 )
 
 func (s *Service) List(ctx context.Context, args ListArgs) (ListResult, error) {
@@ -50,13 +51,7 @@ func (s *Service) List(ctx context.Context, args ListArgs) (ListResult, error) {
 		return ListResult{}, err
 	}
 
-	maxEntries := args.MaxEntries
-	if maxEntries <= 0 {
-		maxEntries = 200
-	}
-	if maxEntries > 1000 {
-		maxEntries = 1000
-	}
+	maxEntries := limits.ClampInt(args.MaxEntries, 200, 1000)
 
 	result := ListResult{
 		RootID:  root.ID,
@@ -191,10 +186,7 @@ func (s *Service) Read(ctx context.Context, args ReadArgs) (ReadResult, error) {
 		return ReadResult{}, err
 	}
 
-	limit := args.Limit
-	if limit <= 0 || limit > root.MaxFileBytes {
-		limit = root.MaxFileBytes
-	}
+	limit := limits.ClampInt64(args.Limit, root.MaxFileBytes, root.MaxFileBytes)
 
 	f, err := root.ReadFS.Open(rel)
 	if err != nil {
@@ -257,13 +249,7 @@ func (s *Service) Search(ctx context.Context, args SearchArgs) (SearchResult, er
 		return SearchResult{}, err
 	}
 
-	maxResults := args.MaxResults
-	if maxResults <= 0 {
-		maxResults = 50
-	}
-	if maxResults > 500 {
-		maxResults = 500
-	}
+	maxResults := limits.ClampInt(args.MaxResults, 50, 500)
 
 	glob := filepath.ToSlash(strings.TrimSpace(args.Glob))
 

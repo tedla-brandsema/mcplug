@@ -73,13 +73,11 @@
 * [x] Add README documentation for `fs_tree` and `git_show`.
   Include the tools in the MCP tools table and add example workflow snippets.
 
-## IN PROGRESS
-
-* [ ] Add a shared truncation/result-limit helper.
+* [x] Add a shared truncation/result-limit helper.
   Several tools already need bounded output.
   Centralize max bytes / max entries behavior so future tools behave consistently.
 
-## BACKLOG
+## IN PROGRESS
 
 * [ ] Add a shared path-scoped git helper.
   `git_diff`, `git_log`, and `git_show` should use a common helper for:
@@ -88,6 +86,8 @@
   * resolving paths inside roots
   * appending `-- path`
   * handling git command limits/errors
+
+## BACKLOG
 
 * [ ] Add `git_blame`.
   Return blame information for a file, optionally scoped to a line range.

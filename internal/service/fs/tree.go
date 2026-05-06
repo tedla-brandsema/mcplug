@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/tedla-brandsema/mcpfs/internal/core"
+	"github.com/tedla-brandsema/mcpfs/internal/limits"
 )
 
 type treeBuildNode struct {
@@ -52,21 +53,8 @@ func (s *Service) Tree(ctx context.Context, args TreeArgs) (TreeResult, error) {
 		return TreeResult{}, err
 	}
 
-	maxDepth := args.MaxDepth
-	if maxDepth <= 0 {
-		maxDepth = 3
-	}
-	if maxDepth > 10 {
-		maxDepth = 10
-	}
-
-	maxEntries := args.MaxEntries
-	if maxEntries <= 0 {
-		maxEntries = 300
-	}
-	if maxEntries > 1000 {
-		maxEntries = 1000
-	}
+	maxDepth := limits.ClampInt(args.MaxDepth, 3, 10)
+	maxEntries := limits.ClampInt(args.MaxEntries, 300, 1000)
 
 	includeFiles := true
 	if args.IncludeFiles != nil {

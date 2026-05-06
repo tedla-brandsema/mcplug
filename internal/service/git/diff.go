@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/tedla-brandsema/mcpfs/internal/core"
+	"github.com/tedla-brandsema/mcpfs/internal/limits"
 )
 
 func (s *Service) Diff(ctx context.Context, args DiffArgs) (DiffResult, error) {
@@ -18,13 +19,7 @@ func (s *Service) Diff(ctx context.Context, args DiffArgs) (DiffResult, error) {
 		return DiffResult{}, err
 	}
 
-	maxBytes := args.MaxBytes
-	if maxBytes <= 0 {
-		maxBytes = defaultGitOutputLimit
-	}
-	if maxBytes > defaultGitOutputLimit {
-		maxBytes = defaultGitOutputLimit
-	}
+	maxBytes := limits.ClampInt(args.MaxBytes, defaultGitOutputLimit, defaultGitOutputLimit)
 
 	gitArgs := []string{"diff"}
 	if args.Staged {
@@ -171,9 +166,7 @@ func (s *Service) diffUntracked(ctx context.Context, root *core.Root, rel string
 }
 
 func syntheticNewFileDiff(rel string, data []byte, mode iofs.FileMode, maxBytes int) (string, bool) {
-	if maxBytes <= 0 {
-		maxBytes = defaultGitOutputLimit
-	}
+	maxBytes = limits.ClampInt(maxBytes, defaultGitOutputLimit, defaultGitOutputLimit)
 
 	fileMode := "100644"
 	if mode.Perm()&0o111 != 0 {

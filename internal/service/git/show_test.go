@@ -125,26 +125,6 @@ func TestShowHonorsMaxBytes(t *testing.T) {
 	}
 }
 
-func TestCapStringBytes(t *testing.T) {
-	got, truncated := capStringBytes("hello world", 5)
-	if got != "hello" {
-		t.Fatalf("got = %q, want %q", got, "hello")
-	}
-	if !truncated {
-		t.Fatal("truncated = false, want true")
-	}
-}
-
-func TestCapStringBytesNoTruncation(t *testing.T) {
-	got, truncated := capStringBytes("hello", 10)
-	if got != "hello" {
-		t.Fatalf("got = %q, want %q", got, "hello")
-	}
-	if truncated {
-		t.Fatal("truncated = true, want false")
-	}
-}
-
 func initTestRepo(t *testing.T, dir string) {
 	t.Helper()
 

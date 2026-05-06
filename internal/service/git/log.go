@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/tedla-brandsema/mcpfs/internal/limits"
 )
 
 const (
@@ -19,21 +21,8 @@ func (s *Service) Log(ctx context.Context, args LogArgs) (LogResult, error) {
 		return LogResult{}, err
 	}
 
-	limit := args.Limit
-	if limit <= 0 {
-		limit = defaultGitLogLimit
-	}
-	if limit > maxGitLogLimit {
-		limit = maxGitLogLimit
-	}
-
-	maxBytes := args.MaxBytes
-	if maxBytes <= 0 {
-		maxBytes = defaultGitOutputLimit
-	}
-	if maxBytes > defaultGitOutputLimit {
-		maxBytes = defaultGitOutputLimit
-	}
+	limit := limits.ClampInt(args.Limit, defaultGitLogLimit, maxGitLogLimit)
+	maxBytes := limits.ClampInt(args.MaxBytes, defaultGitOutputLimit, defaultGitOutputLimit)
 
 	gitArgs := []string{
 		"log",
