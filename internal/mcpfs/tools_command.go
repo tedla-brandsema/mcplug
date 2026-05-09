@@ -40,4 +40,22 @@ func RegisterCommandTools(server *mcp.Server, svc *commandservice.Service) {
 		}
 		return toolJSON(result), result, nil
 	})
+
+	if !svc.Unguarded() {
+		return
+	}
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "cmd_exec",
+		Description: "Run an arbitrary argv command in unguarded command mode. Treat this like terminal access. Commands execute in a root-scoped workdir with timeout and output limits.",
+		Annotations: &mcp.ToolAnnotations{
+			ReadOnlyHint: false,
+		},
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args commandservice.ExecArgs) (*mcp.CallToolResult, commandservice.ExecResult, error) {
+		result, err := svc.Exec(ctx, args)
+		if err != nil {
+			return toolError(err), commandservice.ExecResult{}, nil
+		}
+		return toolJSON(result), result, nil
+	})
 }

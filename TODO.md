@@ -176,19 +176,17 @@
   Keep roots read-only by default and reject writes for `mode: "read"` roots.
   Reuse root boundary checks, include/exclude rules, `.gitignore`, symlink protection, and `max_file_bytes` for writes.
 
-## IN PROGRESS
-
-* [ ] Add command execution framework.
+* [x] Add command execution framework.
   Add command execution modes:
 
   * `disabled` — no command execution tools.
-  * `predefined` — expose `cmd_list` and `cmd_run` for configured commands/chains only.
-  * `unguarded` — also expose `cmd_exec` for arbitrary command execution.
+  * `predefined` — expose `cmd_list` and `cmd_run` for configured commands only.
+  * `unguarded` — also expose `cmd_exec` for arbitrary argv command execution.
 
-  Start with `predefined` mode:
+  Includes:
 
-  * fixed command IDs
-  * argv arrays, no shell interpolation by default
+  * fixed predefined command IDs
+  * arbitrary argv execution in unguarded mode
   * root-scoped working directories
   * timeouts
   * output limits
@@ -197,6 +195,8 @@
   * structured logs
 
   `unguarded` mode is intentionally a power-user mode. Treat it like terminal access.
+
+## IN PROGRESS
 
 ## BACKLOG
 

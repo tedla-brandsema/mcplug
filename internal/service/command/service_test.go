@@ -195,6 +195,121 @@ func TestRunRejectsUnknownCommand(t *testing.T) {
 	}
 }
 
+func TestExecRejectsPredefinedMode(t *testing.T) {
+	dir := t.TempDir()
+	svc := newTestCommandService(t, config.CommandConfig{
+		Mode: config.CommandModePredefined,
+	}, dir)
+
+	_, err := svc.Exec(context.Background(), ExecArgs{
+		RootID:  "repo",
+		Command: []string{os.Args[0], "-test.run=TestCommandHelperProcess", "--", "ok"},
+	})
+	if err == nil {
+		t.Fatal("Exec returned nil error")
+	}
+}
+
+func TestExecRunsArbitraryCommandInUnguardedMode(t *testing.T) {
+	t.Setenv("MCPFS_COMMAND_HELPER", "1")
+	dir := t.TempDir()
+	svc := newTestCommandService(t, config.CommandConfig{
+		Mode: config.CommandModeUnguarded,
+	}, dir)
+
+	result, err := svc.Exec(context.Background(), ExecArgs{
+		RootID:  "repo",
+		Command: []string{os.Args[0], "-test.run=TestCommandHelperProcess", "--", "ok"},
+	})
+	if err != nil {
+		t.Fatalf("Exec returned error: %v", err)
+	}
+
+	if result.ExitCode != 0 {
+		t.Fatalf("ExitCode = %d, want 0; stderr=%q", result.ExitCode, result.Stderr)
+	}
+	if result.RootID != "repo" {
+		t.Fatalf("RootID = %q, want repo", result.RootID)
+	}
+	if result.Workdir != "." {
+		t.Fatalf("Workdir = %q, want .", result.Workdir)
+	}
+	if result.Stdout != "helper stdout\n" {
+		t.Fatalf("Stdout = %q, want helper stdout", result.Stdout)
+	}
+}
+
+func TestExecUsesRootScopedWorkdir(t *testing.T) {
+	t.Setenv("MCPFS_COMMAND_HELPER", "1")
+	dir := t.TempDir()
+	workdir := filepath.Join(dir, "subdir")
+	if err := os.MkdirAll(workdir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	svc := newTestCommandService(t, config.CommandConfig{
+		Mode: config.CommandModeUnguarded,
+	}, dir)
+
+	result, err := svc.Exec(context.Background(), ExecArgs{
+		RootID:  "repo",
+		Workdir: "subdir",
+		Command: []string{os.Args[0], "-test.run=TestCommandHelperProcess", "--", "cwd"},
+	})
+	if err != nil {
+		t.Fatalf("Exec returned error: %v", err)
+	}
+
+	if result.Stdout != workdir {
+		t.Fatalf("Stdout = %q, want %q", result.Stdout, workdir)
+	}
+}
+
+func TestExecRejectsEscapingWorkdir(t *testing.T) {
+	dir := t.TempDir()
+	svc := newTestCommandService(t, config.CommandConfig{
+		Mode: config.CommandModeUnguarded,
+	}, dir)
+
+	_, err := svc.Exec(context.Background(), ExecArgs{
+		RootID:  "repo",
+		Workdir: "..",
+		Command: []string{os.Args[0], "-test.run=TestCommandHelperProcess", "--", "ok"},
+	})
+	if err == nil {
+		t.Fatal("Exec returned nil error")
+	}
+}
+
+func TestExecRejectsEmptyCommand(t *testing.T) {
+	dir := t.TempDir()
+	svc := newTestCommandService(t, config.CommandConfig{
+		Mode: config.CommandModeUnguarded,
+	}, dir)
+
+	_, err := svc.Exec(context.Background(), ExecArgs{
+		RootID: "repo",
+	})
+	if err == nil {
+		t.Fatal("Exec returned nil error")
+	}
+}
+
+func TestExecRejectsUnknownRoot(t *testing.T) {
+	dir := t.TempDir()
+	svc := newTestCommandService(t, config.CommandConfig{
+		Mode: config.CommandModeUnguarded,
+	}, dir)
+
+	_, err := svc.Exec(context.Background(), ExecArgs{
+		RootID:  "missing",
+		Command: []string{os.Args[0], "-test.run=TestCommandHelperProcess", "--", "ok"},
+	})
+	if err == nil {
+		t.Fatal("Exec returned nil error")
+	}
+}
+
 func TestNewRejectsEscapingWorkdir(t *testing.T) {
 	dir := t.TempDir()
 	root := newTestRoot(t, dir)

@@ -2,7 +2,7 @@
 
 `mcpfs` is a Model Context Protocol server for exposing local project context and controlled project operations to MCP clients.
 
-It lets an MCP client work with explicitly configured project roots without uploading files or manually copying snippets into chat. It is designed for live developer context: list files, view bounded project trees, read files and line ranges, search source, inspect Git status and diffs, review commits, inspect blame, get compact project overviews, optionally write files, and optionally run configured development commands.
+It lets an MCP client work with explicitly configured project roots without uploading files or manually copying snippets into chat. It is designed for live developer context: list files, view bounded project trees, read files and line ranges, search source, inspect Git status and diffs, review commits, inspect blame, get compact project overviews, optionally write files, and optionally run configured or arbitrary development commands.
 
 The core idea is simple:
 
@@ -35,6 +35,7 @@ You are responsible for what you expose.
 * Read access by default.
 * Write access through explicit per-root `read_write` opt-in.
 * Command execution through explicit `commands.mode` opt-in.
+* Arbitrary argv command execution in `unguarded` mode.
 * `.gitignore` support.
 * Additional include/exclude glob rules.
 * Root escape protection.
@@ -93,8 +94,9 @@ Command tools:
 | ---------- | ------------------------------------------------------------------------------------------------- |
 | `cmd_list` | List configured command IDs available through MCPFS command execution.                            |
 | `cmd_run`  | Run a predefined command by configured command ID with fixed argv, timeout, and output limits.    |
+| `cmd_exec` | Run an arbitrary argv command in `unguarded` mode with root-scoped workdir, timeout, and limits.  |
 
-`cmd_list` and `cmd_run` are registered when `commands.mode` is `predefined` or `unguarded`. `cmd_exec` for arbitrary command execution is planned for `unguarded` mode, but is not implemented yet.
+`cmd_list` and `cmd_run` are registered when `commands.mode` is `predefined` or `unguarded`. `cmd_exec` is registered only when `commands.mode` is `unguarded`.
 
 ## Permission model
 
@@ -129,9 +131,9 @@ Command execution is controlled by `commands.mode`:
 | ------------ | -------- |
 | `disabled`   | No command execution tools are registered. This is the default. |
 | `predefined` | Registers `cmd_list` and `cmd_run`. Only configured command IDs can run. |
-| `unguarded`  | Currently behaves like `predefined`. Future `cmd_exec` support will allow arbitrary command execution. Treat this mode like terminal access. |
+| `unguarded`  | Registers `cmd_list`, `cmd_run`, and `cmd_exec`. MCP clients can run arbitrary argv commands. Treat this like terminal access. |
 
-Predefined commands use fixed argv arrays. No shell interpolation is used by `cmd_run`. Commands run from root-scoped working directories and return structured stdout, stderr, exit code, duration, timeout, and truncation metadata.
+Predefined commands use fixed argv arrays. No shell interpolation is used by `cmd_run` or `cmd_exec`. Commands run from root-scoped working directories and return structured stdout, stderr, exit code, duration, timeout, and truncation metadata.
 
 The HTTP transports support three auth modes:
 
@@ -139,7 +141,7 @@ The HTTP transports support three auth modes:
 * `bearer` — static bearer token loaded from an environment variable.
 * `oidc` — JWT/OIDC validation using a configured issuer, audience, JWKS URL, and identity allowlist.
 
-Do not expose `mcpfs` to the public internet without understanding what roots you configured, which roots are writable, which commands are available, and which auth mode is active.
+Do not expose `mcpfs` to the public internet without understanding what roots you configured, which roots are writable, which commands are available, whether `cmd_exec` is exposed, and which auth mode is active.
 
 ## Installation
 
@@ -610,6 +612,18 @@ Example predefined commands:
 }
 ```
 
+To expose arbitrary argv execution, switch to `unguarded` mode:
+
+```json
+"commands": {
+  "mode": "unguarded",
+  "defaults": {
+    "timeout_seconds": 60,
+    "max_output_bytes": 65536
+  }
+}
+```
+
 Server config fields:
 
 | Field                   | Description                                                           |
@@ -798,6 +812,20 @@ Run a predefined command with tighter limits:
 
 Call `cmd_run`.
 
+Run an arbitrary argv command in unguarded mode:
+
+```json
+{
+  "root_id": "project",
+  "workdir": ".",
+  "command": ["go", "test", "./internal/service/command"],
+  "timeout_seconds": 60,
+  "max_output_bytes": 65536
+}
+```
+
+Call `cmd_exec`. `commands.mode` must be `unguarded`.
+
 Search code with a substring:
 
 ```json
@@ -943,4 +971,4 @@ export NGROK_AUTHTOKEN="<your-ngrok-authtoken>"
 
 ## Status
 
-`mcpfs` currently focuses on filesystem, Git, project-context, and predefined command execution tools. Roots are read-only by default. File writes are available through `fs_write` only for roots explicitly configured with `mode: "read_write"`. Command execution is disabled by default and available through `cmd_list`/`cmd_run` when `commands.mode` is `predefined` or `unguarded`.
+`mcpfs` currently focuses on filesystem, Git, project-context, and command execution tools. Roots are read-only by default. File writes are available through `fs_write` only for roots explicitly configured with `mode: "read_write"`. Command execution is disabled by default. Predefined command execution is available through `cmd_list`/`cmd_run` when `commands.mode` is `predefined` or `unguarded`. Arbitrary argv command execution is available through `cmd_exec` only when `commands.mode` is `unguarded`.
