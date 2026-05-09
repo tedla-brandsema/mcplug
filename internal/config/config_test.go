@@ -235,6 +235,112 @@ func TestValidateAllowsEmptyRoots(t *testing.T) {
 	}
 }
 
+func TestValidateDefaultsCommandModeToDisabled(t *testing.T) {
+	cfg := validConfig()
+
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate returned error: %v", err)
+	}
+
+	if cfg.Commands.Mode != CommandModeDisabled {
+		t.Fatalf("Commands.Mode = %q, want %q", cfg.Commands.Mode, CommandModeDisabled)
+	}
+}
+
+func TestValidateAllowsPredefinedCommands(t *testing.T) {
+	cfg := validConfig()
+	cfg.Commands = CommandConfig{
+		Mode: CommandModePredefined,
+		Defaults: CommandDefaults{
+			TimeoutSeconds: 30,
+			MaxOutputBytes: 1024,
+		},
+		Items: []CommandItem{
+			{
+				ID:      "test",
+				RootID:  "repo",
+				Workdir: ".",
+				Command: []string{"go", "test", "./..."},
+			},
+		},
+	}
+
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate returned error: %v", err)
+	}
+}
+
+func TestValidateRejectsInvalidCommandMode(t *testing.T) {
+	cfg := validConfig()
+	cfg.Commands.Mode = "wild"
+
+	err := cfg.Validate()
+	if err == nil {
+		t.Fatal("Validate returned nil error")
+	}
+	assertErrorContains(t, err, "commands.mode must be")
+}
+
+func TestValidateRejectsDuplicateCommandID(t *testing.T) {
+	cfg := validConfig()
+	cfg.Commands = CommandConfig{
+		Mode: CommandModePredefined,
+		Items: []CommandItem{
+			{ID: "test", RootID: "repo", Command: []string{"go", "test"}},
+			{ID: "test", RootID: "repo", Command: []string{"go", "test"}},
+		},
+	}
+
+	err := cfg.Validate()
+	if err == nil {
+		t.Fatal("Validate returned nil error")
+	}
+	assertErrorContains(t, err, "duplicate command id")
+}
+
+func TestValidateRejectsCommandUnknownRoot(t *testing.T) {
+	cfg := validConfig()
+	cfg.Commands = CommandConfig{
+		Mode: CommandModePredefined,
+		Items: []CommandItem{
+			{ID: "test", RootID: "missing", Command: []string{"go", "test"}},
+		},
+	}
+
+	err := cfg.Validate()
+	if err == nil {
+		t.Fatal("Validate returned nil error")
+	}
+	assertErrorContains(t, err, "does not match a configured root")
+}
+
+func TestValidateRejectsCommandWithoutArgv(t *testing.T) {
+	cfg := validConfig()
+	cfg.Commands = CommandConfig{
+		Mode: CommandModePredefined,
+		Items: []CommandItem{
+			{ID: "test", RootID: "repo"},
+		},
+	}
+
+	err := cfg.Validate()
+	if err == nil {
+		t.Fatal("Validate returned nil error")
+	}
+	assertErrorContains(t, err, "command is required")
+}
+
+func TestValidateRejectsNegativeCommandDefaults(t *testing.T) {
+	cfg := validConfig()
+	cfg.Commands.Defaults.TimeoutSeconds = -1
+
+	err := cfg.Validate()
+	if err == nil {
+		t.Fatal("Validate returned nil error")
+	}
+	assertErrorContains(t, err, "commands.defaults.timeout_seconds must be >= 0")
+}
+
 func TestDecodeEmbeddedGlobalConfig(t *testing.T) {
 	cfg, err := Decode(embeddedGlobalConfig)
 	if err != nil {
@@ -249,6 +355,9 @@ func TestDecodeEmbeddedGlobalConfig(t *testing.T) {
 	}
 	if len(cfg.Roots) != 0 {
 		t.Fatalf("len(Roots) = %d, want 0", len(cfg.Roots))
+	}
+	if cfg.Commands.Mode != CommandModeDisabled {
+		t.Fatalf("Commands.Mode = %q, want %q", cfg.Commands.Mode, CommandModeDisabled)
 	}
 }
 

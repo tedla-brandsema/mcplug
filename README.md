@@ -2,7 +2,7 @@
 
 `mcpfs` is a Model Context Protocol server for exposing local project context and controlled project operations to MCP clients.
 
-It lets an MCP client work with explicitly configured project roots without uploading files or manually copying snippets into chat. It is designed for live developer context: list files, view bounded project trees, read files and line ranges, search source, inspect Git status and diffs, review commits, inspect blame, get compact project overviews, and optionally write files when a root is explicitly configured as writable.
+It lets an MCP client work with explicitly configured project roots without uploading files or manually copying snippets into chat. It is designed for live developer context: list files, view bounded project trees, read files and line ranges, search source, inspect Git status and diffs, review commits, inspect blame, get compact project overviews, optionally write files, and optionally run configured development commands.
 
 The core idea is simple:
 
@@ -13,8 +13,19 @@ configured roots
   → filesystem tools
   → git inspection tools
   → project overview tools
+  → command tools
   → MCP
 ```
+
+## Warning
+
+`mcpfs` is a power tool.
+
+When configured with write access or command execution, it can modify files and run programs on your machine. Treat access to an MCPFS server like access to your terminal.
+
+Only run it in environments you control. Only connect clients you trust. Review your configuration before starting the server.
+
+You are responsible for what you expose.
 
 ## Features
 
@@ -23,11 +34,13 @@ configured roots
 * Project-local config support through `.mcpfs/project.cfg.json`.
 * Read access by default.
 * Write access through explicit per-root `read_write` opt-in.
+* Command execution through explicit `commands.mode` opt-in.
 * `.gitignore` support.
 * Additional include/exclude glob rules.
 * Root escape protection.
 * Symlink escape protection, including writable-path parent checks.
 * File size limits for reads and writes.
+* Timeout and output limits for command execution.
 * Bounded directory listing and tree output.
 * Structured JSON logging.
 * STDIO transport for local MCP hosts and MCP Inspector.
@@ -46,17 +59,17 @@ configured roots
 
 Filesystem tools:
 
-| Tool              | Description                                                                                                 |
-| ----------------- | ----------------------------------------------------------------------------------------------------------- |
-| `fs_roots`        | List configured filesystem roots and their modes. Does not expose absolute host paths.                      |
-| `fs_list`         | List files under a configured root. Honors explicit excludes and `.gitignore` rules.                        |
-| `fs_tree`         | Return a bounded tree view with structured entries and compact text output.                                 |
-| `fs_read`         | Read a bounded file from a configured root.                                                                 |
-| `fs_read_lines`   | Read a 1-based inclusive line range from a file.                                                            |
-| `fs_write`        | Create or replace a file under a configured `read_write` root. Honors excludes, `.gitignore`, and limits.   |
-| `fs_search`       | Search text files using a case-sensitive substring query.                                                   |
-| `fs_search_regex` | Search text files using a regular expression query.                                                         |
-| `fs_stat`         | Return metadata for a file or directory.                                                                    |
+| Tool              | Description                                                                                               |
+| ----------------- | --------------------------------------------------------------------------------------------------------- |
+| `fs_roots`        | List configured filesystem roots and their modes. Does not expose absolute host paths.                    |
+| `fs_list`         | List files under a configured root. Honors explicit excludes and `.gitignore` rules.                      |
+| `fs_tree`         | Return a bounded tree view with structured entries and compact text output.                               |
+| `fs_read`         | Read a bounded file from a configured root.                                                               |
+| `fs_read_lines`   | Read a 1-based inclusive line range from a file.                                                          |
+| `fs_write`        | Create or replace a file under a configured `read_write` root. Honors excludes, `.gitignore`, and limits. |
+| `fs_search`       | Search text files using a case-sensitive substring query.                                                 |
+| `fs_search_regex` | Search text files using a regular expression query.                                                       |
+| `fs_stat`         | Return metadata for a file or directory.                                                                  |
 
 Git tools:
 
@@ -73,6 +86,15 @@ Project tools:
 | Tool               | Description                                                                                      |
 | ------------------ | ------------------------------------------------------------------------------------------------ |
 | `project_overview` | Return a compact project summary: tree, important files, counts, git status, and recent commits. |
+
+Command tools:
+
+| Tool       | Description                                                                                       |
+| ---------- | ------------------------------------------------------------------------------------------------- |
+| `cmd_list` | List configured command IDs available through MCPFS command execution.                            |
+| `cmd_run`  | Run a predefined command by configured command ID with fixed argv, timeout, and output limits.    |
+
+`cmd_list` and `cmd_run` are registered when `commands.mode` is `predefined` or `unguarded`. `cmd_exec` for arbitrary command execution is planned for `unguarded` mode, but is not implemented yet.
 
 ## Permission model
 
@@ -101,13 +123,23 @@ can be inspected but not written. A root with:
 
 allows `fs_write`, subject to the same root boundary, include/exclude, `.gitignore`, symlink, and size-limit checks.
 
+Command execution is controlled by `commands.mode`:
+
+| Mode         | Behavior |
+| ------------ | -------- |
+| `disabled`   | No command execution tools are registered. This is the default. |
+| `predefined` | Registers `cmd_list` and `cmd_run`. Only configured command IDs can run. |
+| `unguarded`  | Currently behaves like `predefined`. Future `cmd_exec` support will allow arbitrary command execution. Treat this mode like terminal access. |
+
+Predefined commands use fixed argv arrays. No shell interpolation is used by `cmd_run`. Commands run from root-scoped working directories and return structured stdout, stderr, exit code, duration, timeout, and truncation metadata.
+
 The HTTP transports support three auth modes:
 
 * `none` — no HTTP authentication. Useful only for local-only setups or short-lived development tunnels.
 * `bearer` — static bearer token loaded from an environment variable.
 * `oidc` — JWT/OIDC validation using a configured issuer, audience, JWKS URL, and identity allowlist.
 
-Do not expose `mcpfs` to the public internet without understanding what roots you configured, which roots are writable, and which auth mode is active.
+Do not expose `mcpfs` to the public internet without understanding what roots you configured, which roots are writable, which commands are available, and which auth mode is active.
 
 ## Installation
 
@@ -175,7 +207,10 @@ The embedded default global config starts with STDIO transport and no roots:
       "mode": "none"
     }
   },
-  "roots": []
+  "roots": [],
+  "commands": {
+    "mode": "disabled"
+  }
 }
 ```
 
@@ -379,7 +414,10 @@ Example config using bearer auth:
       "use_gitignore": true,
       "max_file_bytes": 262144
     }
-  ]
+  ],
+  "commands": {
+    "mode": "disabled"
+  }
 }
 ```
 
@@ -440,7 +478,10 @@ Example config:
       "use_gitignore": true,
       "max_file_bytes": 262144
     }
-  ]
+  ],
+  "commands": {
+    "mode": "disabled"
+  }
 }
 ```
 
@@ -496,7 +537,7 @@ For short-lived development with ChatGPT Developer Mode, `config.ngrok.example.j
 }
 ```
 
-Only do this while actively testing, and only with carefully scoped roots.
+Only do this while actively testing, and only with carefully scoped roots and commands.
 
 You can also run ngrok with bearer or OIDC auth by changing the `auth` block in the ngrok config.
 
@@ -506,12 +547,12 @@ There are two config layers:
 
 | Config file               | Purpose                                                                                                     |
 | ------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `mcpfs.cfg.json`          | Server settings and configured roots. The default global path is `os.UserConfigDir()/mcpfs/mcpfs.cfg.json`. |
+| `mcpfs.cfg.json`          | Server settings, configured roots, and configured commands. The default global path is `os.UserConfigDir()/mcpfs/mcpfs.cfg.json`. |
 | `.mcpfs/project.cfg.json` | Project-local overview detection rules for a configured root.                                               |
 
 ### Global MCPFS config
 
-The global config controls server settings and roots.
+The global config controls server settings, roots, and command execution.
 
 Root config fields:
 
@@ -524,6 +565,50 @@ Root config fields:
 | `exclude`        | Glob denylist.                                                                |
 | `use_gitignore`  | Apply `.gitignore` rules as an additional deny/allow layer.                   |
 | `max_file_bytes` | Maximum readable or writable file size. Defaults to `262144` when set to `0`. |
+
+Command config fields:
+
+| Field                                | Description |
+| ------------------------------------ | ----------- |
+| `commands.mode`                      | `disabled`, `predefined`, or `unguarded`. Defaults to `disabled`. |
+| `commands.defaults.timeout_seconds`  | Default command timeout. Defaults to `60` when unset. |
+| `commands.defaults.max_output_bytes` | Default combined stdout/stderr output limit. Defaults to `65536` when unset. |
+| `commands.items[].id`                | Stable command id used by `cmd_run`. |
+| `commands.items[].description`       | Optional human-readable description. |
+| `commands.items[].root_id`           | Root id used to scope the command working directory. |
+| `commands.items[].workdir`           | Relative working directory inside the root. Defaults to `.`. |
+| `commands.items[].command`           | Fixed argv array to execute. The first item is the executable. |
+| `commands.items[].timeout_seconds`   | Optional per-command timeout override. |
+| `commands.items[].max_output_bytes`  | Optional per-command output limit override. |
+
+Example predefined commands:
+
+```json
+"commands": {
+  "mode": "predefined",
+  "defaults": {
+    "timeout_seconds": 60,
+    "max_output_bytes": 65536
+  },
+  "items": [
+    {
+      "id": "test",
+      "description": "Run all Go tests",
+      "root_id": "mcpfs",
+      "workdir": ".",
+      "command": ["go", "test", "./..."],
+      "timeout_seconds": 120
+    },
+    {
+      "id": "fmt-go",
+      "description": "Format Go source",
+      "root_id": "mcpfs",
+      "workdir": ".",
+      "command": ["gofmt", "-w", "cmd", "internal"]
+    }
+  ]
+}
+```
 
 Server config fields:
 
@@ -646,8 +731,6 @@ View a bounded project tree:
 
 Call `fs_tree`.
 
-`fs_tree` returns a flat structured `entries` list and a compact `text` tree. The structured entries include path, name, type, depth, parent path, size, and modification time.
-
 Read a file:
 
 ```json
@@ -684,6 +767,36 @@ Write a file under a writable root:
 ```
 
 Call `fs_write`. The root must be configured with `"mode": "read_write"`.
+
+List configured commands:
+
+```json
+{}
+```
+
+Call `cmd_list`.
+
+Run a predefined command:
+
+```json
+{
+  "id": "test"
+}
+```
+
+Call `cmd_run`.
+
+Run a predefined command with tighter limits:
+
+```json
+{
+  "id": "test",
+  "timeout_seconds": 30,
+  "max_output_bytes": 32768
+}
+```
+
+Call `cmd_run`.
 
 Search code with a substring:
 
@@ -771,21 +884,6 @@ Inspect a commit:
 
 Call `git_show`.
 
-Inspect a commit scoped to a path:
-
-```json
-{
-  "root_id": "project",
-  "rev": "HEAD~1",
-  "path": "internal/service/git/show.go",
-  "max_bytes": 65536
-}
-```
-
-Call `git_show`.
-
-`git_show` resolves the requested revision to a single commit and returns commit metadata plus bounded patch output. The revision must not be empty, start with `-`, or contain leading/trailing whitespace.
-
 Review history:
 
 ```json
@@ -845,4 +943,4 @@ export NGROK_AUTHTOKEN="<your-ngrok-authtoken>"
 
 ## Status
 
-`mcpfs` currently focuses on filesystem, Git, and project-context tools. Roots are read-only by default. File writes are available through `fs_write` only for roots explicitly configured with `mode: "read_write"`.
+`mcpfs` currently focuses on filesystem, Git, project-context, and predefined command execution tools. Roots are read-only by default. File writes are available through `fs_write` only for roots explicitly configured with `mode: "read_write"`. Command execution is disabled by default and available through `cmd_list`/`cmd_run` when `commands.mode` is `predefined` or `unguarded`.

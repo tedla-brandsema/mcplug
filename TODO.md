@@ -178,6 +178,26 @@
 
 ## IN PROGRESS
 
+* [ ] Add command execution framework.
+  Add command execution modes:
+
+  * `disabled` — no command execution tools.
+  * `predefined` — expose `cmd_list` and `cmd_run` for configured commands/chains only.
+  * `unguarded` — also expose `cmd_exec` for arbitrary command execution.
+
+  Start with `predefined` mode:
+
+  * fixed command IDs
+  * argv arrays, no shell interpolation by default
+  * root-scoped working directories
+  * timeouts
+  * output limits
+  * stdout/stderr capture
+  * exit code and duration metadata
+  * structured logs
+
+  `unguarded` mode is intentionally a power-user mode. Treat it like terminal access.
+
 ## BACKLOG
 
 * [ ] Add stable location/range types.
@@ -192,27 +212,6 @@
   * references
 
   These will be useful before adding LSP support.
-
-* [ ] Add optional command execution framework for explicitly allowed dev commands.
-  Keep disabled by default.
-
-  This is preparation for tools such as test summaries or external analyzers.
-  Config should require explicit allowlisting.
-
-  Example:
-
-  ```json
-  {
-    "commands": {
-      "enabled": true,
-      "allow": [
-        "go test ./...",
-        "npm test",
-        "cargo test"
-      ]
-    }
-  }
-  ```
 
 * [ ] Add an LSP host configuration model.
   LSP support should be generic and not tied to language-specific plugins.
