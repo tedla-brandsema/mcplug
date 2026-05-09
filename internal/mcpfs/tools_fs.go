@@ -80,6 +80,20 @@ func RegisterFSTools(server *mcp.Server, svc *fsservice.Service) {
 	})
 
 	mcp.AddTool(server, &mcp.Tool{
+		Name:        "fs_write",
+		Description: "Create or replace a file under a configured read_write filesystem root. Path must be relative to the selected root. Honors explicit excludes, .gitignore rules, symlink checks, and file size limits.",
+		Annotations: &mcp.ToolAnnotations{
+			ReadOnlyHint: false,
+		},
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args fsservice.WriteArgs) (*mcp.CallToolResult, fsservice.WriteResult, error) {
+		result, err := svc.Write(ctx, args)
+		if err != nil {
+			return toolError(err), fsservice.WriteResult{}, nil
+		}
+		return toolJSON(result), result, nil
+	})
+
+	mcp.AddTool(server, &mcp.Tool{
 		Name:        "fs_search",
 		Description: "Search text files under a configured filesystem root using a case-sensitive substring query. Honors explicit excludes and .gitignore rules.",
 		Annotations: &mcp.ToolAnnotations{

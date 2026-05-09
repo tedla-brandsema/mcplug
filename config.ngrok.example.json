@@ -14,7 +14,7 @@
     {
       "id": "mcpfs",
       "path": ".",
-      "mode": "read",
+      "mode": "read_write",
       "include": [
         "**/*.go",
         "**/*.md",

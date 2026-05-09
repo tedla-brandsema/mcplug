@@ -81,6 +81,20 @@ type ReadResult struct {
 	Content   string `json:"content"`
 }
 
+type WriteArgs struct {
+	RootID     string `json:"root_id" jsonschema:"configured root id"`
+	Path       string `json:"path" jsonschema:"relative file path inside the root"`
+	Content    string `json:"content" jsonschema:"file content to write"`
+	CreateDirs bool   `json:"create_dirs,omitempty" jsonschema:"whether to create parent directories"`
+}
+
+type WriteResult struct {
+	RootID string `json:"root_id"`
+	Path   string `json:"path"`
+	Bytes  int    `json:"bytes"`
+	Mode   string `json:"mode"`
+}
+
 type ReadLinesArgs struct {
 	RootID    string `json:"root_id" jsonschema:"configured root id"`
 	Path      string `json:"path" jsonschema:"relative file path inside the root"`

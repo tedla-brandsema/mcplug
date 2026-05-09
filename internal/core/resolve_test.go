@@ -85,3 +85,49 @@ func TestResolveInsideRootAllowsRoot(t *testing.T) {
 		t.Fatalf("got %q, want %q", got, realRoot)
 	}
 }
+
+func TestResolveWritableInsideRootAllowsNewFile(t *testing.T) {
+	root := t.TempDir()
+
+	got, err := ResolveWritableInsideRoot(root, filepath.Join("a", "b", "file.txt"))
+	if err != nil {
+		t.Fatalf("ResolveWritableInsideRoot returned error: %v", err)
+	}
+
+	realRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := filepath.Join(realRoot, "a", "b", "file.txt")
+	if got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
+func TestResolveWritableInsideRootRejectsRoot(t *testing.T) {
+	root := t.TempDir()
+
+	_, err := ResolveWritableInsideRoot(root, ".")
+	if err == nil {
+		t.Fatal("expected root path to be rejected")
+	}
+}
+
+func TestResolveWritableInsideRootRejectsSymlinkParentEscape(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink creation requires privileges on some Windows setups")
+	}
+
+	root := t.TempDir()
+	outside := t.TempDir()
+
+	if err := os.Symlink(outside, filepath.Join(root, "link-outside")); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := ResolveWritableInsideRoot(root, filepath.Join("link-outside", "new.txt"))
+	if err == nil {
+		t.Fatal("expected symlink parent escape to be rejected")
+	}
+}
