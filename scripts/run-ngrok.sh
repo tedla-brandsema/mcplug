@@ -4,6 +4,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
+CONFIG_PATH="examples/ngrok-dev/mcpfs.cfg.json"
+
 if [[ -z "${NGROK_AUTHTOKEN:-}" ]]; then
   echo "ERROR: NGROK_AUTHTOKEN is not set."
   echo
@@ -29,7 +31,7 @@ echo "MCPFS_TOKEN:"
 echo "$MCPFS_TOKEN"
 echo
 echo "Starting mcpfs with embedded ngrok..."
-echo "Config: config.ngrok.example.json"
+echo "Config: $CONFIG_PATH"
 echo
 
-exec ./bin/mcpfs -config config.ngrok.example.json
+exec ./bin/mcpfs -config "$CONFIG_PATH"

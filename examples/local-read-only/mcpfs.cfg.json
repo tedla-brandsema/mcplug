@@ -9,11 +9,17 @@
   },
   "roots": [
     {
-      "id": "project",
-      "path": "/path/to/project",
-      "mode": "read_write",
+      "id": "mcpfs",
+      "path": ".",
+      "mode": "read",
       "include": [
-        "**/*"
+        "**/*.go",
+        "**/*.md",
+        "**/*.mod",
+        "**/*.sum",
+        "**/*.json",
+        "**/*.yaml",
+        "**/*.yml"
       ],
       "exclude": [
         "**/.git/**",
@@ -37,10 +43,6 @@
     }
   ],
   "commands": {
-    "mode": "unguarded",
-    "defaults": {
-      "timeout_seconds": 60,
-      "max_output_bytes": 65536
-    }
+    "mode": "disabled"
   }
 }

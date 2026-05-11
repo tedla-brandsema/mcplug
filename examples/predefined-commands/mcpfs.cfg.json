@@ -1,0 +1,38 @@
+{
+  "server": {
+    "name": "mcpfs",
+    "version": "0.4.0",
+    "transport": "stdio",
+    "auth": {
+      "mode": "none"
+    }
+  },
+  "roots": [
+    {
+      "id": "mcpfs",
+      "path": ".",
+      "mode": "read",
+      "include": ["**/*.go", "**/*.md", "**/*.json", "**/*.mod", "**/*.sum"],
+      "exclude": ["**/.git/**", "**/.env", "**/.env.*", "**/*secret*", "**/*credential*", "**/*.pem", "**/*.key"],
+      "use_gitignore": true,
+      "max_file_bytes": 262144
+    }
+  ],
+  "commands": {
+    "mode": "predefined",
+    "defaults": {
+      "timeout_seconds": 60,
+      "max_output_bytes": 65536
+    },
+    "items": [
+      {
+        "id": "test",
+        "description": "Run all Go tests",
+        "root_id": "mcpfs",
+        "workdir": ".",
+        "command": ["go", "test", "./..."],
+        "timeout_seconds": 120
+      }
+    ]
+  }
+}
