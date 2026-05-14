@@ -94,6 +94,20 @@ func RegisterFSTools(server *mcp.Server, svc *fsservice.Service) {
 	})
 
 	mcp.AddTool(server, &mcp.Tool{
+		Name:        "fs_patch",
+		Description: "Apply exact old/new text replacements to an existing file under a configured read_write filesystem root. Each old block must match exactly once. Supports dry_run diff previews.",
+		Annotations: &mcp.ToolAnnotations{
+			ReadOnlyHint: false,
+		},
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args fsservice.PatchArgs) (*mcp.CallToolResult, fsservice.PatchResult, error) {
+		result, err := svc.Patch(ctx, args)
+		if err != nil {
+			return toolError(err), fsservice.PatchResult{}, nil
+		}
+		return toolJSON(result), result, nil
+	})
+
+	mcp.AddTool(server, &mcp.Tool{
 		Name:        "fs_search",
 		Description: "Search text files under a configured filesystem root using a case-sensitive substring query. Honors explicit excludes and .gitignore rules.",
 		Annotations: &mcp.ToolAnnotations{
