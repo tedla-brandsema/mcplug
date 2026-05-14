@@ -208,18 +208,18 @@
   * dry-run diff previews
   * root mode, include/exclude, `.gitignore`, symlink, and max-file-size checks
 
-## IN PROGRESS
-
-* [ ] Add optimistic concurrency for filesystem writes and patches.
+* [x] Add optimistic concurrency for filesystem writes and patches.
   Add `fs_hash` and `expected_sha256` guards so agents can verify they are editing the file version they inspected.
 
-  Include:
+  Includes:
 
   * `fs_hash` returning SHA-256, size, mtime, and mode metadata.
   * `expected_sha256` on `fs_write`.
   * `expected_sha256` on `fs_patch`.
   * tests for matching hash, mismatched hash, missing files, read-only roots, excluded paths, and normal unguarded behavior when the guard is omitted.
-  * README/docs updates for the guarded edit workflow.
+  * docs updates for the guarded edit workflow.
+
+## IN PROGRESS
 
 ## BACKLOG
 

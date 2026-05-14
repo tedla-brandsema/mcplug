@@ -89,6 +89,81 @@ func TestWriteReplacesExistingFile(t *testing.T) {
 	}
 }
 
+func TestWriteWithExpectedSHA256ReplacesMatchingExistingFile(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "hello.txt", "old")
+
+	cfg := testRootConfig("repo", dir)
+	cfg.Mode = config.ModeReadWrite
+
+	svc := newTestService(t, cfg)
+
+	_, err := svc.Write(context.Background(), WriteArgs{
+		RootID:         "repo",
+		Path:           "hello.txt",
+		Content:        "new",
+		ExpectedSHA256: testSHA256("old"),
+	})
+	if err != nil {
+		t.Fatalf("Write returned error: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(dir, "hello.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "new" {
+		t.Fatalf("file content = %q, want new", data)
+	}
+}
+
+func TestWriteWithExpectedSHA256RejectsMismatch(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "hello.txt", "old")
+
+	cfg := testRootConfig("repo", dir)
+	cfg.Mode = config.ModeReadWrite
+
+	svc := newTestService(t, cfg)
+
+	_, err := svc.Write(context.Background(), WriteArgs{
+		RootID:         "repo",
+		Path:           "hello.txt",
+		Content:        "new",
+		ExpectedSHA256: testSHA256("different"),
+	})
+	if err == nil {
+		t.Fatal("Write returned nil error")
+	}
+
+	data, err := os.ReadFile(filepath.Join(dir, "hello.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "old" {
+		t.Fatalf("file content = %q, want old", data)
+	}
+}
+
+func TestWriteWithExpectedSHA256RejectsMissingFile(t *testing.T) {
+	dir := t.TempDir()
+
+	cfg := testRootConfig("repo", dir)
+	cfg.Mode = config.ModeReadWrite
+
+	svc := newTestService(t, cfg)
+
+	_, err := svc.Write(context.Background(), WriteArgs{
+		RootID:         "repo",
+		Path:           "hello.txt",
+		Content:        "new",
+		ExpectedSHA256: testSHA256("old"),
+	})
+	if err == nil {
+		t.Fatal("Write returned nil error")
+	}
+}
+
 func TestWriteCreatesParentDirsWhenRequested(t *testing.T) {
 	dir := t.TempDir()
 

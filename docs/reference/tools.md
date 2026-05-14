@@ -11,7 +11,9 @@ MCPFS registers tools based on the configured capabilities.
 | `fs_tree` | Return a bounded tree view with structured entries and compact text output. |
 | `fs_read` | Read a bounded file from a configured root. |
 | `fs_read_lines` | Read a 1-based inclusive line range from a file. |
-| `fs_write` | Create or replace a file under a configured `read_write` root. Honors excludes, `.gitignore`, symlink checks, and limits. |
+| `fs_hash` | Return SHA-256, size, mtime, and mode metadata for a file. Useful for guarded writes and patches. |
+| `fs_write` | Create or replace a file under a configured `read_write` root. Honors excludes, `.gitignore`, symlink checks, and limits. Supports optional `expected_sha256`. |
+| `fs_patch` | Apply exact old/new text replacements under a configured `read_write` root. Each old block must match exactly once. Supports dry-run previews and optional `expected_sha256`. |
 | `fs_search` | Search text files using a case-sensitive substring query. |
 | `fs_search_regex` | Search text files using a regular expression query. |
 | `fs_stat` | Return metadata for a file or directory. |
@@ -47,6 +49,35 @@ Command tools are registered only when command execution is enabled.
 Most tools that access a root require `root_id`. File and directory tools also use a root-relative `path`.
 
 Paths are interpreted relative to the configured root. Absolute paths and root escapes are rejected.
+
+### Guarded filesystem edits
+
+`fs_hash` can be used before editing to capture the current file identity:
+
+```json
+{
+  "root_id": "project",
+  "path": "README.md"
+}
+```
+
+Use the returned `sha256` as `expected_sha256` on `fs_write` or `fs_patch` to prevent editing a file version the caller did not inspect:
+
+```json
+{
+  "root_id": "project",
+  "path": "README.md",
+  "expected_sha256": "<sha256 from fs_hash>",
+  "edits": [
+    {
+      "old": "old text",
+      "new": "new text"
+    }
+  ]
+}
+```
+
+If the file changed in between, MCPFS rejects the write or patch instead of applying it to a stale file.
 
 ## Related docs
 

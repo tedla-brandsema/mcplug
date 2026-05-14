@@ -70,6 +70,11 @@ func (s *Service) Patch(ctx context.Context, args PatchArgs) (PatchResult, error
 		return PatchResult{}, err
 	}
 
+	if _, err := s.verifyExpectedSHA256(root, rel, args.ExpectedSHA256); err != nil {
+		s.logDenied("mcpfs.patch", root.ID, rel, err.Error())
+		return PatchResult{}, err
+	}
+
 	data, err := os.ReadFile(abs)
 	if err != nil {
 		s.logDenied("mcpfs.patch", root.ID, rel, err.Error())

@@ -112,6 +112,97 @@ func TestPatchDryRunDoesNotWrite(t *testing.T) {
 	}
 }
 
+func TestPatchWithExpectedSHA256AppliesMatchingPatch(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "hello.txt", "hello world\n")
+
+	cfg := testRootConfig("repo", dir)
+	cfg.Mode = config.ModeReadWrite
+
+	svc := newTestService(t, cfg)
+
+	_, err := svc.Patch(context.Background(), PatchArgs{
+		RootID:         "repo",
+		Path:           "hello.txt",
+		ExpectedSHA256: testSHA256("hello world\n"),
+		Edits: []PatchEdit{
+			{Old: "hello", New: "goodbye"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Patch returned error: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(dir, "hello.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "goodbye world\n" {
+		t.Fatalf("file content = %q, want goodbye world", data)
+	}
+}
+
+func TestPatchWithExpectedSHA256RejectsMismatch(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "hello.txt", "hello world\n")
+
+	cfg := testRootConfig("repo", dir)
+	cfg.Mode = config.ModeReadWrite
+
+	svc := newTestService(t, cfg)
+
+	_, err := svc.Patch(context.Background(), PatchArgs{
+		RootID:         "repo",
+		Path:           "hello.txt",
+		ExpectedSHA256: testSHA256("different"),
+		Edits: []PatchEdit{
+			{Old: "hello", New: "goodbye"},
+		},
+	})
+	if err == nil {
+		t.Fatal("Patch returned nil error")
+	}
+
+	data, err := os.ReadFile(filepath.Join(dir, "hello.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "hello world\n" {
+		t.Fatalf("file content = %q, want unchanged", data)
+	}
+}
+
+func TestPatchDryRunWithExpectedSHA256RejectsMismatch(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "hello.txt", "hello world\n")
+
+	cfg := testRootConfig("repo", dir)
+	cfg.Mode = config.ModeReadWrite
+
+	svc := newTestService(t, cfg)
+
+	_, err := svc.Patch(context.Background(), PatchArgs{
+		RootID:         "repo",
+		Path:           "hello.txt",
+		DryRun:         true,
+		ExpectedSHA256: testSHA256("different"),
+		Edits: []PatchEdit{
+			{Old: "hello", New: "goodbye"},
+		},
+	})
+	if err == nil {
+		t.Fatal("Patch returned nil error")
+	}
+
+	data, err := os.ReadFile(filepath.Join(dir, "hello.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "hello world\n" {
+		t.Fatalf("file content = %q, want unchanged", data)
+	}
+}
+
 func TestPatchAppliesMultipleEdits(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, dir, "hello.txt", "one two three\n")

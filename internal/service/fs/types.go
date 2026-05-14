@@ -82,10 +82,11 @@ type ReadResult struct {
 }
 
 type WriteArgs struct {
-	RootID     string `json:"root_id" jsonschema:"configured root id"`
-	Path       string `json:"path" jsonschema:"relative file path inside the root"`
-	Content    string `json:"content" jsonschema:"file content to write"`
-	CreateDirs bool   `json:"create_dirs,omitempty" jsonschema:"whether to create parent directories"`
+	RootID         string `json:"root_id" jsonschema:"configured root id"`
+	Path           string `json:"path" jsonschema:"relative file path inside the root"`
+	Content        string `json:"content" jsonschema:"file content to write"`
+	CreateDirs     bool   `json:"create_dirs,omitempty" jsonschema:"whether to create parent directories"`
+	ExpectedSHA256 string `json:"expected_sha256,omitempty" jsonschema:"optional SHA-256 hash the existing file must match before writing"`
 }
 
 type WriteResult struct {
@@ -96,11 +97,12 @@ type WriteResult struct {
 }
 
 type PatchArgs struct {
-	RootID       string      `json:"root_id" jsonschema:"configured root id"`
-	Path         string      `json:"path" jsonschema:"relative file path inside the root"`
-	Edits        []PatchEdit `json:"edits" jsonschema:"exact old/new text replacements to apply atomically"`
-	DryRun       bool        `json:"dry_run,omitempty" jsonschema:"preview the patch without writing the file"`
-	MaxDiffBytes int         `json:"max_diff_bytes,omitempty" jsonschema:"maximum diff preview bytes to return"`
+	RootID         string      `json:"root_id" jsonschema:"configured root id"`
+	Path           string      `json:"path" jsonschema:"relative file path inside the root"`
+	Edits          []PatchEdit `json:"edits" jsonschema:"exact old/new text replacements to apply atomically"`
+	DryRun         bool        `json:"dry_run,omitempty" jsonschema:"preview the patch without writing the file"`
+	MaxDiffBytes   int         `json:"max_diff_bytes,omitempty" jsonschema:"maximum diff preview bytes to return"`
+	ExpectedSHA256 string      `json:"expected_sha256,omitempty" jsonschema:"optional SHA-256 hash the existing file must match before patching"`
 }
 
 type PatchEdit struct {
@@ -181,6 +183,20 @@ type SearchRegexResult struct {
 	MaxResults    int           `json:"max_results"`
 	Matches       []SearchMatch `json:"matches"`
 	Truncated     bool          `json:"truncated"`
+}
+
+type HashArgs struct {
+	RootID string `json:"root_id" jsonschema:"configured root id"`
+	Path   string `json:"path" jsonschema:"relative file path inside the root"`
+}
+
+type HashResult struct {
+	RootID string `json:"root_id"`
+	Path   string `json:"path"`
+	SHA256 string `json:"sha256"`
+	Size   int64  `json:"size"`
+	MTime  string `json:"mtime"`
+	Mode   string `json:"mode"`
 }
 
 type StatArgs struct {

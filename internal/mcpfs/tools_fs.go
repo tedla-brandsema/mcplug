@@ -80,6 +80,20 @@ func RegisterFSTools(server *mcp.Server, svc *fsservice.Service) {
 	})
 
 	mcp.AddTool(server, &mcp.Tool{
+		Name:        "fs_hash",
+		Description: "Return SHA-256, size, mtime, and mode metadata for a file under a configured filesystem root. Useful for guarded writes and patches.",
+		Annotations: &mcp.ToolAnnotations{
+			ReadOnlyHint: true,
+		},
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args fsservice.HashArgs) (*mcp.CallToolResult, fsservice.HashResult, error) {
+		result, err := svc.Hash(ctx, args)
+		if err != nil {
+			return toolError(err), fsservice.HashResult{}, nil
+		}
+		return toolJSON(result), result, nil
+	})
+
+	mcp.AddTool(server, &mcp.Tool{
 		Name:        "fs_write",
 		Description: "Create or replace a file under a configured read_write filesystem root. Path must be relative to the selected root. Honors explicit excludes, .gitignore rules, symlink checks, and file size limits.",
 		Annotations: &mcp.ToolAnnotations{

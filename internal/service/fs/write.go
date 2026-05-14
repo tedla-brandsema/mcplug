@@ -62,6 +62,18 @@ func (s *Service) Write(ctx context.Context, args WriteArgs) (WriteResult, error
 		return WriteResult{}, err
 	}
 
+	if args.ExpectedSHA256 != "" {
+		if err != nil {
+			s.logDenied("mcpfs.write", root.ID, rel, "expected_sha256 requires an existing file")
+			return WriteResult{}, fmt.Errorf("expected_sha256 requires an existing file")
+		}
+
+		if _, err := s.verifyExpectedSHA256(root, rel, args.ExpectedSHA256); err != nil {
+			s.logDenied("mcpfs.write", root.ID, rel, err.Error())
+			return WriteResult{}, err
+		}
+	}
+
 	parent := filepath.Dir(abs)
 	parentInfo, err := os.Stat(parent)
 	if err != nil {
