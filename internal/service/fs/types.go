@@ -95,6 +95,33 @@ type WriteResult struct {
 	Mode   string `json:"mode"`
 }
 
+type PatchArgs struct {
+	RootID       string      `json:"root_id" jsonschema:"configured root id"`
+	Path         string      `json:"path" jsonschema:"relative file path inside the root"`
+	Edits        []PatchEdit `json:"edits" jsonschema:"exact old/new text replacements to apply atomically"`
+	DryRun       bool        `json:"dry_run,omitempty" jsonschema:"preview the patch without writing the file"`
+	MaxDiffBytes int         `json:"max_diff_bytes,omitempty" jsonschema:"maximum diff preview bytes to return"`
+}
+
+type PatchEdit struct {
+	Old string `json:"old" jsonschema:"exact text block to replace; must match exactly once"`
+	New string `json:"new" jsonschema:"replacement text block"`
+}
+
+type PatchResult struct {
+	RootID        string `json:"root_id"`
+	Path          string `json:"path"`
+	Mode          string `json:"mode"`
+	DryRun        bool   `json:"dry_run"`
+	Changed       bool   `json:"changed"`
+	EditsApplied  int    `json:"edits_applied"`
+	BytesBefore   int    `json:"bytes_before"`
+	BytesAfter    int    `json:"bytes_after"`
+	MaxDiffBytes  int    `json:"max_diff_bytes"`
+	Diff          string `json:"diff"`
+	DiffTruncated bool   `json:"diff_truncated"`
+}
+
 type ReadLinesArgs struct {
 	RootID    string `json:"root_id" jsonschema:"configured root id"`
 	Path      string `json:"path" jsonschema:"relative file path inside the root"`
