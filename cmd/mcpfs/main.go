@@ -12,6 +12,7 @@ import (
 	"github.com/tedla-brandsema/mcpfs/internal/auth"
 	"github.com/tedla-brandsema/mcpfs/internal/config"
 	"github.com/tedla-brandsema/mcpfs/internal/mcpfs"
+	"github.com/tedla-brandsema/mcpfs/internal/upstream"
 )
 
 func main() {
@@ -36,13 +37,27 @@ func main() {
 
 	logger.Info("loaded config", "path", resolvedConfigPath)
 
-	server, err := mcpfs.NewServer(cfg, logger)
+	if warning := config.WorldReadableWarning(resolvedConfigPath, cfg); warning != "" {
+		logger.Warn(warning)
+	}
+	if len(cfg.MCPServers) == 0 {
+		logger.Warn("no mcpServers configured; the gateway will expose zero tools")
+	}
+
+	ctx := context.Background()
+
+	startup, err := upstream.StartAll(ctx, cfg, logger)
+	if err != nil {
+		logger.Error("start upstreams", "error", err)
+		os.Exit(1)
+	}
+	defer startup.Close()
+
+	server, err := mcpfs.BuildServer(cfg, startup, logger)
 	if err != nil {
 		logger.Error("create server", "error", err)
 		os.Exit(1)
 	}
-
-	ctx := context.Background()
 
 	switch cfg.Server.Transport {
 	case "stdio":
