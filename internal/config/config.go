@@ -11,13 +11,13 @@ import (
 	"strings"
 )
 
-//go:embed mcpfs.cfg.json
+//go:embed mcplug.cfg.json
 var embeddedGlobalConfig []byte
 
-//go:embed mcpfs.starter.cfg.json
+//go:embed mcplug.starter.cfg.json
 var starterConfig []byte
 
-const GlobalConfigFileName = "mcpfs.cfg.json"
+const GlobalConfigFileName = "mcplug.cfg.json"
 
 type AuthMode string
 
@@ -44,10 +44,10 @@ type AuthConfig struct {
 type Config struct {
 	Server ServerConfig `json:"server"`
 
-	// MCPServers configures the upstream MCP servers whose tools MCPFS
+	// MCPServers configures the upstream MCP servers whose tools MCPlug
 	// aggregates. The shape is compatible with the Claude/Cursor
 	// `mcpServers` convention; url, headers, disabled, optional, cwd,
-	// includeTools, and excludeTools are MCPFS extensions.
+	// includeTools, and excludeTools are MCPlug extensions.
 	MCPServers map[string]MCPServer `json:"mcpServers,omitempty"`
 }
 
@@ -63,7 +63,7 @@ type MCPServer struct {
 	Headers map[string]string `json:"headers,omitempty"`
 
 	// Disabled entries are ignored entirely. Optional entries may fail at
-	// startup without aborting MCPFS; their tools stay absent until restart.
+	// startup without aborting MCPlug; their tools stay absent until restart.
 	Disabled bool `json:"disabled,omitempty"`
 	Optional bool `json:"optional,omitempty"`
 
@@ -178,7 +178,7 @@ func DefaultGlobalPath() (string, error) {
 		return "", fmt.Errorf("resolve user config dir: %w", err)
 	}
 
-	return filepath.Join(dir, "mcpfs", GlobalConfigFileName), nil
+	return filepath.Join(dir, "mcplug", GlobalConfigFileName), nil
 }
 
 // WorldReadableWarning returns a non-empty warning when the config file at

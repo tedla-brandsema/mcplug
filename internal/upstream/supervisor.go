@@ -10,7 +10,7 @@ import (
 	"github.com/jpillora/backoff"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/tedla-brandsema/mcpfs/internal/config"
+	"github.com/tedla-brandsema/mcplug/internal/config"
 )
 
 // State is a supervisor lifecycle state.

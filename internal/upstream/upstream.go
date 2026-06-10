@@ -1,4 +1,4 @@
-// Package upstream connects MCPFS to the MCP servers configured under
+// Package upstream connects MCPlug to the MCP servers configured under
 // mcpServers: stdio child processes and remote streamable-HTTP endpoints.
 package upstream
 
@@ -10,7 +10,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/tedla-brandsema/mcpfs/internal/config"
+	"github.com/tedla-brandsema/mcplug/internal/config"
 )
 
 // DefaultTimeout bounds upstream connect, list, and call operations.
@@ -19,7 +19,7 @@ const DefaultTimeout = 60 * time.Second
 // timeout is variable so tests can shorten it.
 var timeout = DefaultTimeout
 
-// Upstream is a connected MCP server whose tools MCPFS aggregates.
+// Upstream is a connected MCP server whose tools MCPlug aggregates.
 //
 // CallTool follows the gateway error-mapping contract: expected
 // upstream/runtime failures (upstream restarting or unavailable, timeout,
@@ -51,7 +51,7 @@ func New(name string, cfg config.MCPServer, logger *slog.Logger) Upstream {
 
 func clientImplementation() *mcp.Implementation {
 	return &mcp.Implementation{
-		Name:    "mcpfs-gateway",
+		Name:    "mcplug",
 		Version: "v2",
 	}
 }

@@ -1,4 +1,4 @@
-package mcpfs
+package gateway
 
 import (
 	"context"
@@ -8,8 +8,8 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/tedla-brandsema/mcpfs/internal/config"
-	"github.com/tedla-brandsema/mcpfs/internal/upstream"
+	"github.com/tedla-brandsema/mcplug/internal/config"
+	"github.com/tedla-brandsema/mcplug/internal/upstream"
 )
 
 // TestEndToEndHTTPUpstream exercises the full gateway path with a real HTTP

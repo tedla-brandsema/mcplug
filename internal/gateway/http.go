@@ -1,4 +1,4 @@
-package mcpfs
+package gateway
 
 import (
 	"errors"
@@ -7,7 +7,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/tedla-brandsema/mcpfs/internal/auth"
+	"github.com/tedla-brandsema/mcplug/internal/auth"
 )
 
 type HTTPOptions struct {
@@ -37,7 +37,7 @@ func (s *Server) HTTPHandler(opts HTTPOptions) (http.Handler, error) {
 		logger.Warn(
 			"http auth disabled",
 			"path", path,
-			"warning", "mcpfs HTTP endpoint is unauthenticated",
+			"warning", "plug HTTP endpoint is unauthenticated",
 		)
 	}
 

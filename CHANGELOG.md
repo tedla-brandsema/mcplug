@@ -4,6 +4,7 @@
 
 ### Breaking
 
+* The project is renamed **MCPFS → MCPlug**: binary `mcpfs` → `plug`, module path `github.com/tedla-brandsema/mcpfs` → `github.com/tedla-brandsema/mcplug`, global config `~/.config/mcpfs/mcpfs.cfg.json` → `~/.config/mcplug/mcplug.cfg.json`.
 * MCPFS is now a pure **MCP aggregating gateway**. All native tools are removed: `fs_*`, `git_*`, `project_overview`, `cmd_list`, `cmd_run`, `cmd_exec`.
 * The `roots` and `commands` config sections are removed, along with the `mcpfs project add|rm|ls` CLI and project-local `.mcpfs/project.cfg.json` configs.
 * MCPFS v1 behavior is preserved on the `legacy/v1` branch. See the README migration section for mapping v1 roots onto reference servers.

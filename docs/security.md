@@ -1,18 +1,18 @@
 # Security
 
-MCPFS is security-sensitive software: it executes the programs you configure and can expose their capabilities to remote clients. Read this page before enabling HTTP or ngrok.
+MCPlug is security-sensitive software: it executes the programs you configure and can expose their capabilities to remote clients. Read this page before enabling HTTP or ngrok.
 
 ## Trust boundaries
 
-- **MCPFS does not sandbox upstream servers.** stdio children run with the same OS privileges as the MCPFS process. A malicious or compromised upstream server can do anything your user account can. Configure only servers you trust.
-- **Connected clients get every aggregated tool.** If the filesystem server you configure can write files, every client that can reach the MCPFS endpoint can write files. Use `includeTools`/`excludeTools` to narrow what is exposed.
+- **MCPlug does not sandbox upstream servers.** stdio children run with the same OS privileges as the MCPlug process. A malicious or compromised upstream server can do anything your user account can. Configure only servers you trust.
+- **Connected clients get every aggregated tool.** If the filesystem server you configure can write files, every client that can reach the MCPlug endpoint can write files. Use `includeTools`/`excludeTools` to narrow what is exposed.
 - **Commands are executed directly** with `exec` (argv as configured), never through a shell. There is no shell-expansion or injection surface in the config itself.
 
 ## Secrets
 
-- `mcpServers.*.env` and `mcpServers.*.headers` values may contain credentials. MCPFS never logs these values, and redacts values whose keys look secret-like (`token`, `authorization`, `api_key`, `apikey`, `secret`, `password`, `bearer`) in any config output.
-- Config files created by MCPFS use mode 0600. MCPFS warns at startup when a config containing `headers`/`env` values is world-readable; fix with `chmod 600`.
-- Bearer tokens for MCPFS's own auth are read from the environment (`auth.token_env`), never stored in the config.
+- `mcpServers.*.env` and `mcpServers.*.headers` values may contain credentials. MCPlug never logs these values, and redacts values whose keys look secret-like (`token`, `authorization`, `api_key`, `apikey`, `secret`, `password`, `bearer`) in any config output.
+- Config files created by MCPlug use mode 0600. MCPlug warns at startup when a config containing `headers`/`env` values is world-readable; fix with `chmod 600`.
+- Bearer tokens for MCPlug's own auth are read from the environment (`auth.token_env`), never stored in the config.
 
 ## Exposure guidance
 
@@ -26,7 +26,7 @@ In order of increasing risk:
 ## Operational notes
 
 - A crashing upstream is restarted with backoff; during restart its tools return tool errors. This is not an auth bypass — the endpoint auth is unaffected.
-- `mcpfs ls` probes upstreams (it spawns the configured commands) but never starts the HTTP listener or tunnel.
+- `plug ls` probes upstreams (it spawns the configured commands) but never starts the HTTP listener or tunnel.
 - Upstream calls are bounded by a 60-second timeout to prevent a hung upstream from pinning client connections indefinitely.
 
 ## Reporting

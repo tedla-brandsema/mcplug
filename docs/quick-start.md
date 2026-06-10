@@ -1,33 +1,33 @@
 # Quick start
 
-This guide runs MCPFS locally over stdio, aggregating the reference filesystem and git servers. It needs no network exposure.
+This guide runs MCPlug locally over stdio, aggregating the reference filesystem and git servers. It needs no network exposure.
 
 ## Before you begin
 
-- Go 1.25+ to build MCPFS.
+- Go 1.25+ to build MCPlug.
 - `npx` (Node.js) for the reference filesystem server.
 - `uvx` (uv) for the reference git server — optional.
 
 ## 1. Build
 
 ```bash
-git clone https://github.com/tedla-brandsema/mcpfs.git
-cd mcpfs
-go build -o ./bin/mcpfs ./cmd/mcpfs
+git clone https://github.com/tedla-brandsema/mcplug.git
+cd mcplug
+go build -o ./bin/plug ./cmd/plug
 ```
 
 ## 2. Create a config
 
 ```bash
-./bin/mcpfs init
+./bin/plug init
 ```
 
-This writes a starter config (mode 0600) to your user config directory (e.g. `~/.config/mcpfs/mcpfs.cfg.json`) with example entries that are disabled. Edit it:
+This writes a starter config (mode 0600) to your user config directory (e.g. `~/.config/mcplug/mcplug.cfg.json`) with example entries that are disabled. Edit it:
 
 ```json
 {
   "server": {
-    "name": "mcpfs",
+    "name": "mcplug",
     "version": "2.0.0",
     "transport": "stdio"
   },
@@ -47,7 +47,7 @@ This writes a starter config (mode 0600) to your user config directory (e.g. `~/
 ## 3. Smoke-test
 
 ```bash
-./bin/mcpfs ls
+./bin/plug ls
 ```
 
 `ls` probes every configured server and prints its tools (exposed name and original name) without starting any transport, tunnel, or listener. It exits non-zero if a required server fails.
@@ -63,13 +63,13 @@ filesystem (stdio) — running, 14 tool(s)
 ## 4. Run
 
 ```bash
-./bin/mcpfs
+./bin/plug
 ```
 
-Connect any local MCP client to the `./bin/mcpfs` command, or inspect interactively:
+Connect any local MCP client to the `./bin/plug` command, or inspect interactively:
 
 ```bash
-bunx @modelcontextprotocol/inspector ./bin/mcpfs
+bunx @modelcontextprotocol/inspector ./bin/plug
 ```
 
 ## Next steps

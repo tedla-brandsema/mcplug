@@ -9,13 +9,13 @@ import (
 	"os"
 	"sort"
 
-	"github.com/tedla-brandsema/mcpfs/internal/config"
-	"github.com/tedla-brandsema/mcpfs/internal/mcpfs"
-	"github.com/tedla-brandsema/mcpfs/internal/upstream"
+	"github.com/tedla-brandsema/mcplug/internal/config"
+	"github.com/tedla-brandsema/mcplug/internal/gateway"
+	"github.com/tedla-brandsema/mcplug/internal/upstream"
 )
 
 // runLs is the config smoke test: it validates the config and probes every
-// mcpServers entry, printing its tools. It never starts the MCPFS transport,
+// mcpServers entry, printing its tools. It never starts the MCPlug transport,
 // HTTP listener, or ngrok tunnel. A required upstream failure exits non-zero;
 // optional failures are shown but do not fail the command.
 func runLs(args []string, logger *slog.Logger) int {
@@ -23,7 +23,7 @@ func runLs(args []string, logger *slog.Logger) int {
 	fs.SetOutput(os.Stderr)
 
 	var configPath string
-	fs.StringVar(&configPath, "config", "", "path to mcpfs config file; defaults to the global user config")
+	fs.StringVar(&configPath, "config", "", "path to config file; defaults to the global user config")
 
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
@@ -98,7 +98,7 @@ func lsServer(name string, srvCfg config.MCPServer, logger *slog.Logger) bool {
 		return false
 	}
 
-	kept, missing := mcpfs.FilterTools(tools, srvCfg.IncludeTools, srvCfg.ExcludeTools)
+	kept, missing := gateway.FilterTools(tools, srvCfg.IncludeTools, srvCfg.ExcludeTools)
 	keptNames := make(map[string]struct{}, len(kept))
 	for _, t := range kept {
 		keptNames[t.Name] = struct{}{}

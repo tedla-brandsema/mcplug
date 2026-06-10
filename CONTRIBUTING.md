@@ -1,23 +1,23 @@
 # Contributing
 
-Thank you for considering a contribution to MCPFS.
+Thank you for considering a contribution to MCPlug.
 
-MCPFS is security-sensitive software. Changes that affect upstream process spawning, tool aggregation and filtering, HTTP transport, authentication, secret handling, or supervisor restart behavior need careful review and tests where practical.
+MCPlug is security-sensitive software. Changes that affect upstream process spawning, tool aggregation and filtering, HTTP transport, authentication, secret handling, or supervisor restart behavior need careful review and tests where practical.
 
 ## Before you begin
 
 Install Go and clone the repository:
 
 ```bash
-git clone https://github.com/tedla-brandsema/mcpfs.git
-cd mcpfs
+git clone https://github.com/tedla-brandsema/mcplug.git
+cd mcplug
 ```
 
 Build and test before making changes:
 
 ```bash
 go test ./...
-go build ./cmd/mcpfs
+go build ./cmd/plug
 ```
 
 ## Development checks
@@ -27,7 +27,7 @@ Run these checks before opening a pull request:
 ```bash
 gofmt -w .
 go test ./...
-go build ./cmd/mcpfs
+go build ./cmd/plug
 ```
 
 CI checks formatting, tests, and build.

@@ -1,4 +1,4 @@
-module github.com/tedla-brandsema/mcpfs
+module github.com/tedla-brandsema/mcplug
 
 go 1.25.7
 

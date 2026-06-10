@@ -1,6 +1,6 @@
 {
   "server": {
-    "name": "mcpfs",
+    "name": "mcplug",
     "version": "2.0.0",
     "transport": "stdio",
     "auth": {

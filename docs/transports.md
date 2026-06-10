@@ -1,13 +1,13 @@
 # Transports
 
-MCPFS serves the aggregated MCP endpoint over one of three transports, configured in `server.transport`. Choose the narrowest transport that works for your client.
+MCPlug serves the aggregated MCP endpoint over one of three transports, configured in `server.transport`. Choose the narrowest transport that works for your client.
 
 ## `stdio` (default)
 
 For local MCP clients that spawn the server themselves (Claude Desktop, IDEs, the MCP Inspector).
 
 ```json
-{"server": {"name": "mcpfs", "version": "2.0.0", "transport": "stdio"}}
+{"server": {"name": "mcplug", "version": "2.0.0", "transport": "stdio"}}
 ```
 
 Client config (Claude Desktop style):
@@ -15,7 +15,7 @@ Client config (Claude Desktop style):
 ```json
 {
   "mcpServers": {
-    "mcpfs": {"command": "/path/to/bin/mcpfs"}
+    "mcplug": {"command": "/path/to/bin/plug"}
   }
 }
 ```
@@ -27,12 +27,12 @@ Streamable HTTP on a local address. `GET /healthz` reports liveness.
 ```json
 {
   "server": {
-    "name": "mcpfs",
+    "name": "mcplug",
     "version": "2.0.0",
     "transport": "http",
     "addr": "127.0.0.1:8080",
     "path": "/mcp",
-    "auth": {"mode": "bearer", "token_env": "MCPFS_TOKEN"}
+    "auth": {"mode": "bearer", "token_env": "MCPLUG_TOKEN"}
   }
 }
 ```
@@ -41,7 +41,7 @@ Keep `addr` on localhost unless you have a reverse proxy with TLS and auth in fr
 
 ## `http_ngrok`
 
-Same HTTP server plus an embedded ngrok tunnel. MCPFS logs the public MCP URL at startup; add it as a connector in remote clients (e.g. ChatGPT). Requires ngrok credentials in the environment (`NGROK_AUTHTOKEN`). `ngrok_url` optionally pins a reserved domain.
+Same HTTP server plus an embedded ngrok tunnel. MCPlug logs the public MCP URL at startup; add it as a connector in remote clients (e.g. ChatGPT). Requires ngrok credentials in the environment (`NGROK_AUTHTOKEN`). `ngrok_url` optionally pins a reserved domain.
 
 Always combine `http_ngrok` with `bearer` or `oidc` auth — see [security](security.md).
 
@@ -56,11 +56,11 @@ No authentication. Only acceptable for localhost.
 Shared token compared in constant time. The token is read from the environment variable named by `token_env`, never from the config file.
 
 ```json
-{"auth": {"mode": "bearer", "token_env": "MCPFS_TOKEN"}}
+{"auth": {"mode": "bearer", "token_env": "MCPLUG_TOKEN"}}
 ```
 
 ```bash
-MCPFS_TOKEN=$(openssl rand -hex 32) ./bin/mcpfs
+MCPLUG_TOKEN=$(openssl rand -hex 32) ./bin/plug
 ```
 
 Clients send `Authorization: Bearer <token>`.
@@ -74,7 +74,7 @@ Validates JWTs against an identity provider: issuer, audience, expiry, and a sub
   "auth": {
     "mode": "oidc",
     "issuer": "https://issuer.example.com",
-    "audience": "mcpfs",
+    "audience": "mcplug",
     "jwks_url": "https://issuer.example.com/jwks",
     "allowed_emails": ["you@example.com"]
   }

@@ -18,7 +18,7 @@ import (
 
 const (
 	testIssuer   = "https://issuer.example.com"
-	testAudience = "mcpfs"
+	testAudience = "mcplug"
 	testSubject  = "user-123"
 	testEmail    = "you@example.com"
 	testKeyID    = "test-key"

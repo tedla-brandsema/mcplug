@@ -12,10 +12,10 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/tedla-brandsema/mcpfs/internal/auth"
-	"github.com/tedla-brandsema/mcpfs/internal/config"
-	"github.com/tedla-brandsema/mcpfs/internal/mcpfs"
-	"github.com/tedla-brandsema/mcpfs/internal/upstream"
+	"github.com/tedla-brandsema/mcplug/internal/auth"
+	"github.com/tedla-brandsema/mcplug/internal/config"
+	"github.com/tedla-brandsema/mcplug/internal/gateway"
+	"github.com/tedla-brandsema/mcplug/internal/upstream"
 )
 
 func main() {
@@ -38,7 +38,7 @@ func main() {
 		printUsage()
 		flag.PrintDefaults()
 	}
-	flag.StringVar(&configPath, "config", "", "path to mcpfs config file; defaults to the global user config")
+	flag.StringVar(&configPath, "config", "", "path to config file; defaults to the global user config")
 	flag.Parse()
 
 	cfg, resolvedConfigPath, err := config.LoadOrCreate(configPath)
@@ -67,11 +67,11 @@ func main() {
 	defer startup.Close()
 
 	for _, skipped := range startup.SkippedOptional {
-		logger.Warn("optional upstream skipped; restart mcpfs after fixing it",
+		logger.Warn("optional upstream skipped; restart plug after fixing it",
 			"upstream", skipped.Name, "error", skipped.Err)
 	}
 
-	server, err := mcpfs.BuildServer(cfg, startup, logger)
+	server, err := gateway.BuildServer(cfg, startup, logger)
 	if err != nil {
 		logger.Error("create server", "error", err)
 		os.Exit(1)
@@ -79,7 +79,7 @@ func main() {
 
 	switch cfg.Server.Transport {
 	case "stdio":
-		logger.Info("starting mcpfs", "transport", "stdio")
+		logger.Info("starting plug", "transport", "stdio")
 
 		if err := server.MCP.Run(ctx, &mcp.StdioTransport{}); err != nil {
 			logger.Error("run stdio server", "error", err)
@@ -101,7 +101,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		handler, err := server.HTTPHandler(mcpfs.HTTPOptions{
+		handler, err := server.HTTPHandler(gateway.HTTPOptions{
 			Path:          cfg.Server.Path,
 			Authenticator: authenticator,
 			Logger:        logger,
@@ -117,7 +117,7 @@ func main() {
 		}
 
 		if cfg.Server.Transport == "http_ngrok" {
-			mcpURL, err := mcpfs.StartNgrok(ctx, mcpfs.NgrokOptions{
+			mcpURL, err := gateway.StartNgrok(ctx, gateway.NgrokOptions{
 				Addr:   cfg.Server.Addr,
 				Path:   cfg.Server.Path,
 				URL:    cfg.Server.NgrokURL,
@@ -128,11 +128,11 @@ func main() {
 				os.Exit(1)
 			}
 
-			logger.Info("mcpfs public endpoint ready", "mcp_url", mcpURL)
+			logger.Info("plug public endpoint ready", "mcp_url", mcpURL)
 		}
 
 		logger.Info(
-			"starting mcpfs",
+			"starting plug",
 			"transport", cfg.Server.Transport,
 			"addr", cfg.Server.Addr,
 			"path", cfg.Server.Path,
@@ -160,13 +160,13 @@ func main() {
 }
 
 func printUsage() {
-	os.Stderr.WriteString(`mcpfs - MCP aggregating gateway
+	os.Stderr.WriteString(`plug - MCPlug, an MCP aggregating gateway
 
 Usage:
-  mcpfs [-config path]   run the gateway with the configured transport
-  mcpfs init [-path p]   write a starter config with example mcpServers
-  mcpfs ls [-config p]   probe configured mcpServers and list their tools
-  mcpfs help             show this help
+  plug [-config path]   run the gateway with the configured transport
+  plug init [-path p]   write a starter config with example mcpServers
+  plug ls [-config p]   probe configured mcpServers and list their tools
+  plug help             show this help
 
 `)
 }

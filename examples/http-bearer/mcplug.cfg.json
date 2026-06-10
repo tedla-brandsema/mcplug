@@ -1,18 +1,13 @@
 {
   "server": {
-    "name": "mcpfs",
+    "name": "mcplug",
     "version": "2.0.0",
     "transport": "http",
     "addr": "127.0.0.1:8080",
     "path": "/mcp",
     "auth": {
-      "mode": "oidc",
-      "issuer": "https://issuer.example.com",
-      "audience": "mcpfs",
-      "jwks_url": "https://issuer.example.com/.well-known/jwks.json",
-      "allowed_subjects": [
-        "user-or-client-subject-id"
-      ]
+      "mode": "bearer",
+      "token_env": "MCPLUG_TOKEN"
     }
   },
   "mcpServers": {

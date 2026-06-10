@@ -7,7 +7,7 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/tedla-brandsema/mcpfs/internal/config"
+	"github.com/tedla-brandsema/mcplug/internal/config"
 )
 
 // runInit writes a starter config with example mcpServers entries (disabled)

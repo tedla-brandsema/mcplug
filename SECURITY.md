@@ -1,14 +1,14 @@
 # Security
 
-MCPFS is a power tool.
+MCPlug is a power tool.
 
-It spawns the MCP servers you configure and exposes their tools — potentially to remote clients. Treat access to an MCPFS endpoint like access to everything its configured upstream servers can do.
+It spawns the MCP servers you configure and exposes their tools — potentially to remote clients. Treat access to an MCPlug endpoint like access to everything its configured upstream servers can do.
 
 ## High-risk configuration
 
 The following settings intentionally grant powerful capabilities:
 
-* upstream servers with write, delete, or execute tools (MCPFS does not sandbox them; stdio children run with MCPFS's own OS privileges)
+* upstream servers with write, delete, or execute tools (MCPlug does not sandbox them; stdio children run with MCPlug's own OS privileges)
 * HTTP or ngrok transports exposed outside your local machine
 * `auth.mode: "none"` on network transports
 
@@ -18,7 +18,7 @@ The following settings intentionally grant powerful capabilities:
 * Connect only MCP clients you trust: every client gets every aggregated tool.
 * Use `includeTools`/`excludeTools` to narrow what each upstream exposes.
 * Use bearer or OIDC auth for HTTP transports; never expose `auth.mode: "none"` to untrusted networks.
-* Keep config files private (`chmod 600`): `headers` and `env` values may contain secrets. MCPFS never logs these values and warns when such a config is world-readable.
+* Keep config files private (`chmod 600`): `headers` and `env` values may contain secrets. MCPlug never logs these values and warns when such a config is world-readable.
 * Review config files before starting the server; commands run verbatim via `exec` (never through a shell).
 
 See [docs/security.md](docs/security.md) for the full trust-boundary discussion.

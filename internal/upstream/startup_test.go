@@ -9,7 +9,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/tedla-brandsema/mcpfs/internal/config"
+	"github.com/tedla-brandsema/mcplug/internal/config"
 )
 
 // StubUpstream is a configurable in-memory Upstream for tests.

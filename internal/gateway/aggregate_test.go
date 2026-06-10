@@ -1,4 +1,4 @@
-package mcpfs
+package gateway
 
 import (
 	"bytes"
@@ -12,8 +12,8 @@ import (
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/tedla-brandsema/mcpfs/internal/config"
-	"github.com/tedla-brandsema/mcpfs/internal/upstream"
+	"github.com/tedla-brandsema/mcplug/internal/config"
+	"github.com/tedla-brandsema/mcplug/internal/upstream"
 )
 
 type stubUpstream struct {
@@ -62,7 +62,7 @@ func testTool(name string) *mcp.Tool {
 
 func gatewayConfig(servers map[string]config.MCPServer) config.Config {
 	return config.Config{
-		Server:     config.ServerConfig{Name: "mcpfs", Version: "2.0.0", Transport: "stdio"},
+		Server:     config.ServerConfig{Name: "mcplug", Version: "2.0.0", Transport: "stdio"},
 		MCPServers: servers,
 	}
 }

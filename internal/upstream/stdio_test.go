@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/tedla-brandsema/mcpfs/internal/config"
+	"github.com/tedla-brandsema/mcplug/internal/config"
 )
 
 func testLogger(t *testing.T) *slog.Logger {

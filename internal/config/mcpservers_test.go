@@ -165,7 +165,7 @@ func TestValidateAllowsDisabledEntryWithMissingBinary(t *testing.T) {
 
 func TestValidateParsesOptionalFlag(t *testing.T) {
 	cfg, err := Decode([]byte(`{
-		"server": {"name": "mcpfs", "version": "2.0.0", "transport": "stdio"},
+		"server": {"name": "mcplug", "version": "2.0.0", "transport": "stdio"},
 		"mcpServers": {
 			"maybe": {"command": "npx", "optional": true}
 		}

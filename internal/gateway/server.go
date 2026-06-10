@@ -1,4 +1,4 @@
-package mcpfs
+package gateway
 
 import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"

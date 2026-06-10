@@ -15,10 +15,10 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/tedla-brandsema/mcpfs/internal/config"
+	"github.com/tedla-brandsema/mcplug/internal/config"
 )
 
-const childEnvMarker = "MCPFS_TEST_CHILD"
+const childEnvMarker = "MCPLUG_TEST_CHILD"
 
 // TestMain doubles as the test child: when the marker env var is set, the
 // test binary serves a tiny MCP server over stdio instead of running tests.

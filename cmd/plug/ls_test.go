@@ -22,7 +22,7 @@ func lsLogger() *slog.Logger {
 
 func TestLsRequiredFailureExitsNonZero(t *testing.T) {
 	path := writeConfig(t, `{
-		"server": {"name": "mcpfs", "version": "2.0.0", "transport": "stdio"},
+		"server": {"name": "mcplug", "version": "2.0.0", "transport": "stdio"},
 		"mcpServers": {
 			"broken": {"command": "/no/such/binary/anywhere"}
 		}
@@ -35,7 +35,7 @@ func TestLsRequiredFailureExitsNonZero(t *testing.T) {
 
 func TestLsOptionalFailureExitsZero(t *testing.T) {
 	path := writeConfig(t, `{
-		"server": {"name": "mcpfs", "version": "2.0.0", "transport": "stdio"},
+		"server": {"name": "mcplug", "version": "2.0.0", "transport": "stdio"},
 		"mcpServers": {
 			"broken": {"command": "/no/such/binary/anywhere", "optional": true}
 		}
@@ -48,7 +48,7 @@ func TestLsOptionalFailureExitsZero(t *testing.T) {
 
 func TestLsDisabledOnlyExitsZero(t *testing.T) {
 	path := writeConfig(t, `{
-		"server": {"name": "mcpfs", "version": "2.0.0", "transport": "stdio"},
+		"server": {"name": "mcplug", "version": "2.0.0", "transport": "stdio"},
 		"mcpServers": {
 			"off": {"command": "/no/such/binary/anywhere", "disabled": true}
 		}
@@ -61,7 +61,7 @@ func TestLsDisabledOnlyExitsZero(t *testing.T) {
 
 func TestLsEmptyMCPServersExitsZero(t *testing.T) {
 	path := writeConfig(t, `{
-		"server": {"name": "mcpfs", "version": "2.0.0", "transport": "stdio"},
+		"server": {"name": "mcplug", "version": "2.0.0", "transport": "stdio"},
 		"mcpServers": {}
 	}`)
 
@@ -72,7 +72,7 @@ func TestLsEmptyMCPServersExitsZero(t *testing.T) {
 
 func TestLsInvalidConfigExitsNonZero(t *testing.T) {
 	path := writeConfig(t, `{
-		"server": {"name": "mcpfs", "version": "2.0.0", "transport": "stdio"},
+		"server": {"name": "mcplug", "version": "2.0.0", "transport": "stdio"},
 		"mcpServers": {
 			"bad": {"command": "x", "url": "https://example.com/mcp"}
 		}

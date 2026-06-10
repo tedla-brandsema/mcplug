@@ -8,7 +8,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/tedla-brandsema/mcpfs/internal/config"
+	"github.com/tedla-brandsema/mcplug/internal/config"
 )
 
 // ActiveUpstream is a started upstream together with its startup tool
@@ -42,7 +42,7 @@ var newUpstream = New
 // StartAll is the single owner of upstream startup: it starts every enabled
 // mcpServers entry and performs the initial tool listing. A required upstream
 // failing aborts startup (already-started upstreams are closed); an optional
-// upstream failing is logged and skipped — its tools stay absent until MCPFS
+// upstream failing is logged and skipped — its tools stay absent until MCPlug
 // restarts. Disabled entries are ignored entirely.
 func StartAll(ctx context.Context, cfg config.Config, logger *slog.Logger) (*StartupResult, error) {
 	if logger == nil {

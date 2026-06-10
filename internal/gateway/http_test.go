@@ -1,4 +1,4 @@
-package mcpfs
+package gateway
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/tedla-brandsema/mcpfs/internal/auth"
+	"github.com/tedla-brandsema/mcplug/internal/auth"
 )
 
 func TestAuthenticateHTTPAllowsAuthorizedRequest(t *testing.T) {

@@ -1,6 +1,6 @@
 # AGENTS.md
 
-MCPFS is a pure MCP aggregating gateway (see README.md). Agents working here follow these rules. This file is authoritative for the repo.
+MCPlug is a pure MCP aggregating gateway (see README.md). Agents working here follow these rules. This file is authoritative for the repo.
 
 ## Non-negotiables
 
@@ -12,9 +12,9 @@ MCPFS is a pure MCP aggregating gateway (see README.md). Agents working here fol
 
 - `internal/config` — schema, validation, sanitizer, redaction. No MCP SDK imports.
 - `internal/upstream` — upstream clients, `StartAll`, supervisor. Owns upstream startup and the initial tool listing, exclusively.
-- `internal/mcpfs` — aggregator, HTTP handler, ngrok. `BuildServer` consumes `StartupResult`; it must never create, start, or list upstreams.
+- `internal/gateway` — aggregator, HTTP handler, ngrok. `BuildServer` consumes `StartupResult`; it must never create, start, or list upstreams.
 - `internal/auth` — authenticators only.
-- `cmd/mcpfs` — CLI wiring, kept thin.
+- `cmd/plug` — CLI wiring, kept thin.
 
 ## Contracts to preserve
 
@@ -22,7 +22,7 @@ MCPFS is a pure MCP aggregating gateway (see README.md). Agents working here fol
 - Tool names: always `<server>_<tool>`, sanitizer in `internal/config/sanitize.go` is the single source of truth.
 - `optional` affects startup failure only; `disabled` means ignored; enabled servers are required by default.
 - Commands run verbatim via `exec.CommandContext`, never through a shell. The SDK `CommandTransport` owns `Start`/`Close`; factories hand it unstarted `exec.Cmd`s.
-- `mcpfs ls` never starts the transport, HTTP listener, or ngrok tunnel.
+- `plug ls` never starts the transport, HTTP listener, or ngrok tunnel.
 
 ## Workflow
 

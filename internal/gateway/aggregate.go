@@ -1,4 +1,4 @@
-package mcpfs
+package gateway
 
 import (
 	"context"
@@ -9,8 +9,8 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/tedla-brandsema/mcpfs/internal/config"
-	"github.com/tedla-brandsema/mcpfs/internal/upstream"
+	"github.com/tedla-brandsema/mcplug/internal/config"
+	"github.com/tedla-brandsema/mcplug/internal/upstream"
 )
 
 // route maps an exposed tool name back to its upstream and original name.
