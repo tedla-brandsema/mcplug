@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -39,7 +40,36 @@ type AuthConfig struct {
 
 type Config struct {
 	Server ServerConfig `json:"server"`
+
+	// MCPServers configures the upstream MCP servers whose tools MCPFS
+	// aggregates. The shape is compatible with the Claude/Cursor
+	// `mcpServers` convention; url, headers, disabled, optional, cwd,
+	// includeTools, and excludeTools are MCPFS extensions.
+	MCPServers map[string]MCPServer `json:"mcpServers,omitempty"`
 }
+
+type MCPServer struct {
+	// Stdio upstream: command is executed verbatim, never through a shell.
+	Command string            `json:"command,omitempty"`
+	Args    []string          `json:"args,omitempty"`
+	Env     map[string]string `json:"env,omitempty"`
+	Cwd     string            `json:"cwd,omitempty"`
+
+	// HTTP upstream.
+	URL     string            `json:"url,omitempty"`
+	Headers map[string]string `json:"headers,omitempty"`
+
+	// Disabled entries are ignored entirely. Optional entries may fail at
+	// startup without aborting MCPFS; their tools stay absent until restart.
+	Disabled bool `json:"disabled,omitempty"`
+	Optional bool `json:"optional,omitempty"`
+
+	IncludeTools []string `json:"includeTools,omitempty"`
+	ExcludeTools []string `json:"excludeTools,omitempty"`
+}
+
+// IsHTTP reports whether the entry is an HTTP upstream.
+func (s MCPServer) IsHTTP() bool { return s.URL != "" }
 
 type ServerConfig struct {
 	Name      string `json:"name"`
@@ -121,6 +151,29 @@ func DefaultGlobalPath() (string, error) {
 	return filepath.Join(dir, "mcpfs", GlobalConfigFileName), nil
 }
 
+// WorldReadableWarning returns a non-empty warning when the config file at
+// path is world-readable while cfg carries headers or env values, which may
+// contain secrets. The caller decides how to log it.
+func WorldReadableWarning(path string, cfg Config) string {
+	hasSecrets := false
+	for _, srv := range cfg.MCPServers {
+		if len(srv.Headers) > 0 || len(srv.Env) > 0 {
+			hasSecrets = true
+			break
+		}
+	}
+	if !hasSecrets {
+		return ""
+	}
+
+	info, err := os.Stat(path)
+	if err != nil || info.Mode().Perm()&0o004 == 0 {
+		return ""
+	}
+
+	return fmt.Sprintf("config %s contains headers/env values but is world-readable; consider chmod 600", path)
+}
+
 func Decode(data []byte) (Config, error) {
 	var cfg Config
 	if err := json.Unmarshal(data, &cfg); err != nil {
@@ -166,6 +219,81 @@ func (c *Config) Validate() error {
 
 	default:
 		return fmt.Errorf("unsupported server.transport %q", c.Server.Transport)
+	}
+
+	if err := c.validateMCPServers(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// validateMCPServers structurally validates every entry, including disabled
+// ones; it never checks command availability or network reachability.
+func (c *Config) validateMCPServers() error {
+	prefixes := make(map[string]string, len(c.MCPServers))
+
+	for name, srv := range c.MCPServers {
+		if name == "" {
+			return fmt.Errorf("mcpServers entries must have a non-empty name")
+		}
+
+		sanitized, err := SanitizeServerName(name)
+		if err != nil {
+			return fmt.Errorf("mcpServers[%q]: %w", name, err)
+		}
+		if other, ok := prefixes[sanitized]; ok {
+			return fmt.Errorf("mcpServers[%q] and mcpServers[%q] both sanitize to tool prefix %q", name, other, sanitized)
+		}
+		prefixes[sanitized] = name
+
+		hasCommand := srv.Command != ""
+		hasURL := srv.URL != ""
+		switch {
+		case hasCommand && hasURL:
+			return fmt.Errorf("mcpServers[%q]: command and url are mutually exclusive", name)
+		case !hasCommand && !hasURL:
+			return fmt.Errorf("mcpServers[%q]: exactly one of command or url is required", name)
+		}
+
+		if hasURL {
+			u, err := url.Parse(srv.URL)
+			if err != nil {
+				return fmt.Errorf("mcpServers[%q]: invalid url: %w", name, err)
+			}
+			if u.Scheme != "http" && u.Scheme != "https" {
+				return fmt.Errorf("mcpServers[%q]: url scheme must be http or https", name)
+			}
+			if u.Host == "" {
+				return fmt.Errorf("mcpServers[%q]: url host is required", name)
+			}
+			if len(srv.Args) > 0 {
+				return fmt.Errorf("mcpServers[%q]: args only apply to command upstreams", name)
+			}
+			if len(srv.Env) > 0 {
+				return fmt.Errorf("mcpServers[%q]: env only applies to command upstreams", name)
+			}
+			if srv.Cwd != "" {
+				return fmt.Errorf("mcpServers[%q]: cwd only applies to command upstreams", name)
+			}
+		} else if len(srv.Headers) > 0 {
+			return fmt.Errorf("mcpServers[%q]: headers only apply to url upstreams", name)
+		}
+
+		for k := range srv.Env {
+			if k == "" {
+				return fmt.Errorf("mcpServers[%q]: env keys must not be empty", name)
+			}
+		}
+		for k := range srv.Headers {
+			if k == "" {
+				return fmt.Errorf("mcpServers[%q]: header keys must not be empty", name)
+			}
+		}
+
+		if len(srv.IncludeTools) > 0 && len(srv.ExcludeTools) > 0 {
+			return fmt.Errorf("mcpServers[%q]: includeTools and excludeTools are mutually exclusive", name)
+		}
 	}
 
 	return nil
