@@ -1,58 +1,26 @@
 # ngrok development example
 
-This example shows how to expose MCPFS through a short-lived ngrok tunnel for development testing.
+Exposes the gateway through an embedded ngrok tunnel so a remote MCP client (for example a ChatGPT connector) can reach it. Bearer auth is required — the public URL is reachable by anyone who finds it.
 
-## Scenario
+## Run
 
-You need a temporary public URL so a remote MCP client can reach a local MCPFS server during development.
+1. Edit `mcpfs.cfg.json`: replace `/absolute/path/to/project` in both entries. Optionally set `server.ngrok_url` to a reserved ngrok domain.
+2. Export credentials:
 
-## User goal
+   ```bash
+   export NGROK_AUTHTOKEN=...               # from your ngrok dashboard
+   export MCPFS_TOKEN=$(openssl rand -hex 32)
+   ```
 
-Run MCPFS with `http_ngrok`, a read-only root, and bearer authentication.
+3. Smoke-test and start:
 
-## Files
+   ```bash
+   mcpfs ls -config mcpfs.cfg.json
+   mcpfs -config mcpfs.cfg.json
+   ```
 
-- `README.md` — this guide.
-- `mcpfs.cfg.json` — safer ngrok development config.
+MCPFS logs the public MCP URL (`https://<subdomain>.ngrok.../mcp`) at startup.
 
-## Command flow
+## Connect a remote client
 
-Build MCPFS:
-
-```bash
-go build -o ./bin/mcpfs ./cmd/mcpfs
-```
-
-Set development tokens in your shell or secret manager:
-
-```bash
-export NGROK_AUTHTOKEN="<your-ngrok-authtoken>"
-export MCPFS_TOKEN="$(openssl rand -hex 32)"
-```
-
-Run the server:
-
-```bash
-./bin/mcpfs -config examples/ngrok-dev/mcpfs.cfg.json
-```
-
-Copy the public MCP URL from the logs and configure your remote MCP client to use it.
-
-## Expected output
-
-- MCPFS starts an HTTP server locally.
-- ngrok creates a public tunnel.
-- Requests without the bearer token are rejected.
-- Requests with the bearer token reach the MCP handler.
-
-## Security notes
-
-Use this example for development only. Stop the tunnel when testing ends.
-
-This canonical example uses a read-only root and bearer auth. Avoid public tunnels with `auth.mode: "none"`, `read_write` roots, or `commands.mode: "unguarded"` unless you fully accept the risk in a controlled environment.
-
-## Related docs
-
-- [ngrok development](../../docs/advanced/ngrok-development.md)
-- [Transports](../../docs/transports.md)
-- [Security](../../docs/security.md)
+Add the printed URL as an MCP connector and configure it to send `Authorization: Bearer $MCPFS_TOKEN`. Treat the URL itself as sensitive and stop the process when you are done — the tunnel lives only as long as MCPFS runs.

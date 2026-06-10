@@ -1,117 +1,90 @@
 # Transports
 
-MCPFS supports local and HTTP-based transports. Choose the narrowest transport that works for your client.
+MCPFS serves the aggregated MCP endpoint over one of three transports, configured in `server.transport`. Choose the narrowest transport that works for your client.
 
-## Transport options
+## `stdio` (default)
 
-| Transport | Use case |
-| --- | --- |
-| `stdio` | Local MCP clients and MCP Inspector. Recommended first. |
-| `http` | Network-accessible MCP clients. Requires careful auth and exposure review. |
-| `http_ngrok` | Short-lived development tunnels. Treat as higher risk. |
-
-## STDIO
-
-STDIO is the recommended first transport because it does not open a network listener.
-
-Run with the default global config:
-
-```bash
-mcpfs
-```
-
-Run with an explicit config:
-
-```bash
-mcpfs -config /path/to/mcpfs.cfg.json
-```
-
-Use STDIO for local MCP hosts that can start MCPFS as a child process.
-
-## HTTP
-
-HTTP transport is useful when an MCP client needs a URL endpoint.
-
-Minimal HTTP server settings:
+For local MCP clients that spawn the server themselves (Claude Desktop, IDEs, the MCP Inspector).
 
 ```json
-"server": {
-  "name": "mcpfs",
-  "version": "0.4.0",
-  "transport": "http",
-  "addr": "127.0.0.1:8080",
-  "path": "/mcp",
-  "auth": {
-    "mode": "bearer",
-    "token_env": "MCPFS_TOKEN"
+{"server": {"name": "mcpfs", "version": "2.0.0", "transport": "stdio"}}
+```
+
+Client config (Claude Desktop style):
+
+```json
+{
+  "mcpServers": {
+    "mcpfs": {"command": "/path/to/bin/mcpfs"}
   }
 }
 ```
 
-Start the server:
+## `http`
 
-```bash
-export MCPFS_TOKEN="$(openssl rand -hex 32)"
-mcpfs -config /path/to/mcpfs.cfg.json
+Streamable HTTP on a local address. `GET /healthz` reports liveness.
+
+```json
+{
+  "server": {
+    "name": "mcpfs",
+    "version": "2.0.0",
+    "transport": "http",
+    "addr": "127.0.0.1:8080",
+    "path": "/mcp",
+    "auth": {"mode": "bearer", "token_env": "MCPFS_TOKEN"}
+  }
+}
 ```
 
-Check the health endpoint:
+Keep `addr` on localhost unless you have a reverse proxy with TLS and auth in front.
 
-```bash
-curl http://127.0.0.1:8080/healthz
+## `http_ngrok`
+
+Same HTTP server plus an embedded ngrok tunnel. MCPFS logs the public MCP URL at startup; add it as a connector in remote clients (e.g. ChatGPT). Requires ngrok credentials in the environment (`NGROK_AUTHTOKEN`). `ngrok_url` optionally pins a reserved domain.
+
+Always combine `http_ngrok` with `bearer` or `oidc` auth — see [security](security.md).
+
+## Authentication modes (`server.auth`)
+
+### `none`
+
+No authentication. Only acceptable for localhost.
+
+### `bearer`
+
+Shared token compared in constant time. The token is read from the environment variable named by `token_env`, never from the config file.
+
+```json
+{"auth": {"mode": "bearer", "token_env": "MCPFS_TOKEN"}}
 ```
 
-A plain `GET /mcp` may return a protocol-level MCP response such as `405 Method Not Allowed`. That can still mean the request reached the MCP handler.
-
-## Bearer auth
-
-Bearer auth checks an `Authorization: Bearer ...` header against a token loaded from an environment variable.
-
-Example request:
-
 ```bash
-curl -i \
-  -H "Authorization: Bearer $MCPFS_TOKEN" \
-  http://127.0.0.1:8080/mcp
+MCPFS_TOKEN=$(openssl rand -hex 32) ./bin/mcpfs
 ```
 
-Use bearer auth for simple trusted deployments. Use TLS for remote access.
+Clients send `Authorization: Bearer <token>`.
 
-## OIDC/JWT auth
+### `oidc`
 
-OIDC auth validates bearer JWTs from an external identity provider.
+Validates JWTs against an identity provider: issuer, audience, expiry, and a subject/email allowlist, with JWKS fetched from `jwks_url` (cached 5 minutes).
 
-Required settings:
+```json
+{
+  "auth": {
+    "mode": "oidc",
+    "issuer": "https://issuer.example.com",
+    "audience": "mcpfs",
+    "jwks_url": "https://issuer.example.com/jwks",
+    "allowed_emails": ["you@example.com"]
+  }
+}
+```
 
-- `issuer`
-- `audience`
-- `jwks_url`
-- `allowed_emails` or `allowed_subjects`
+`allowed_subjects` may be used instead of (or alongside) `allowed_emails`; at least one of the two lists is required.
 
-MCPFS validates JWT signature, issuer, audience, expiry, not-before time when present, and identity allowlists.
+## Failure semantics at the endpoint
 
-Use OIDC when you want identity-provider-backed authentication instead of a static shared token.
-
-## ngrok development tunnels
-
-`http_ngrok` starts MCPFS with an embedded ngrok tunnel for remote development testing.
-
-Use ngrok only for short-lived development unless you have reviewed and hardened the deployment.
-
-Safer defaults for ngrok examples:
-
-- read-only roots;
-- bearer or OIDC auth;
-- no unguarded command execution;
-- short-lived tokens;
-- stop the tunnel when testing ends.
-
-Avoid combining ngrok with `auth.mode: "none"`, `read_write` roots, or `commands.mode: "unguarded"` unless you fully accept the risk in a controlled environment.
-
-## Related docs
-
-- [Security](security.md)
-- [Configuration](configuration.md)
-- [Configure bearer authentication](how-to/configure-bearer-auth.md)
-- [Configure OIDC authentication](how-to/configure-oidc.md)
-- [ngrok development](advanced/ngrok-development.md)
+- Missing/invalid credentials → HTTP 401.
+- Auth backend failure (e.g. JWKS unreachable) → HTTP 500.
+- Upstream server failures (crash, restart, timeout) surface as MCP **tool errors** on the affected tools; the endpoint itself stays up.

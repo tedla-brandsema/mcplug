@@ -1,65 +1,25 @@
 # HTTP bearer example
 
-This example shows how to run MCPFS over HTTP with a bearer token.
+Runs the gateway over localhost HTTP with a shared bearer token, aggregating the reference filesystem server (read-style tools only) and the reference git server.
 
-## Scenario
+## Run
 
-You need a local or controlled network HTTP endpoint for an MCP client.
+1. Edit `mcpfs.cfg.json`: replace `/absolute/path/to/project` in both entries.
+2. Export a strong token (never store it in the config):
 
-## User goal
+   ```bash
+   export MCPFS_TOKEN=$(openssl rand -hex 32)
+   ```
 
-Run MCPFS with HTTP transport and bearer authentication.
+3. Smoke-test and start:
 
-## Files
+   ```bash
+   mcpfs ls -config mcpfs.cfg.json
+   mcpfs -config mcpfs.cfg.json
+   ```
 
-- `README.md` — this guide.
-- `mcpfs.cfg.json` — example HTTP bearer config.
-- `env.example` — example environment variable name.
+## Connect
 
-## Command flow
+Streamable-HTTP MCP clients connect to `http://127.0.0.1:8080/mcp` with header `Authorization: Bearer $MCPFS_TOKEN`. Requests without the token receive HTTP 401. `GET /healthz` reports liveness without auth.
 
-Build MCPFS:
-
-```bash
-go build -o ./bin/mcpfs ./cmd/mcpfs
-```
-
-Set a development token:
-
-```bash
-export MCPFS_TOKEN="$(openssl rand -hex 32)"
-```
-
-Run the server:
-
-```bash
-./bin/mcpfs -config examples/http-bearer/mcpfs.cfg.json
-```
-
-Check health:
-
-```bash
-curl http://127.0.0.1:8080/healthz
-```
-
-Configure your MCP client to connect to:
-
-```text
-http://127.0.0.1:8080/mcp
-```
-
-## Expected output
-
-- Health check succeeds.
-- Requests without the expected token are rejected.
-- Requests with the expected token reach the MCP handler.
-
-## Security notes
-
-Do not commit real tokens. Use TLS or a trusted reverse proxy for remote HTTP. Keep roots read-only unless writes are required.
-
-## Related docs
-
-- [Transports](../../docs/transports.md)
-- [Security](../../docs/security.md)
-- [Configure bearer authentication](../../docs/how-to/configure-bearer-auth.md)
+See `env.example` for the expected environment variable.

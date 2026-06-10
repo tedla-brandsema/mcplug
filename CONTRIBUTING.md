@@ -2,7 +2,7 @@
 
 Thank you for considering a contribution to MCPFS.
 
-MCPFS is security-sensitive software. Changes that affect filesystem access, writes, HTTP transport, authentication, command execution, path resolution, symlink handling, or Git operations need careful review and tests where practical.
+MCPFS is security-sensitive software. Changes that affect upstream process spawning, tool aggregation and filtering, HTTP transport, authentication, secret handling, or supervisor restart behavior need careful review and tests where practical.
 
 ## Before you begin
 
@@ -58,15 +58,15 @@ Avoid:
 
 Add or update tests when changing:
 
-- root resolution;
-- include or exclude matching;
-- `.gitignore` handling;
-- symlink handling;
-- writable root behavior;
-- command execution;
+- config validation or the server-name sanitizer;
+- upstream spawning, env merging, or header injection;
+- tool filtering (`includeTools`/`excludeTools`) or tool-name prefixing;
+- supervisor lifecycle, restart, or shutdown behavior;
+- the tool-error vs protocol-error mapping;
+- secret redaction or logging;
 - HTTP auth;
 - OIDC/JWT validation;
-- output or file size limits.
+- upstream timeouts.
 
 Update `docs/security.md` when behavior changes the trust boundary or safe-use guidance.
 

@@ -1,7 +1,7 @@
 {
   "server": {
     "name": "mcpfs",
-    "version": "0.4.0",
+    "version": "2.0.0",
     "transport": "http_ngrok",
     "addr": "127.0.0.1:8080",
     "path": "/mcp",
@@ -11,18 +11,33 @@
     },
     "ngrok_url": ""
   },
-  "roots": [
-    {
-      "id": "mcpfs",
-      "path": ".",
-      "mode": "read",
-      "include": ["**/*.go", "**/*.md", "**/*.json", "**/*.mod", "**/*.sum"],
-      "exclude": ["**/.git/**", "**/.env", "**/.env.*", "**/*secret*", "**/*credential*", "**/*.pem", "**/*.key"],
-      "use_gitignore": true,
-      "max_file_bytes": 262144
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/absolute/path/to/project"
+      ],
+      "includeTools": [
+        "read_file",
+        "read_text_file",
+        "read_multiple_files",
+        "list_directory",
+        "directory_tree",
+        "search_files",
+        "get_file_info",
+        "list_allowed_directories"
+      ]
+    },
+    "git": {
+      "command": "uvx",
+      "args": [
+        "mcp-server-git",
+        "--repository",
+        "/absolute/path/to/project"
+      ],
+      "optional": true
     }
-  ],
-  "commands": {
-    "mode": "disabled"
   }
 }
