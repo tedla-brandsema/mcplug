@@ -52,7 +52,7 @@ func BuildServer(cfg config.Config, startup *upstream.StartupResult, logger *slo
 			return nil, fmt.Errorf("upstream %q: %w", name, err)
 		}
 
-		tools, missing := filterTools(active.Tools, srvCfg.IncludeTools, srvCfg.ExcludeTools)
+		tools, missing := FilterTools(active.Tools, srvCfg.IncludeTools, srvCfg.ExcludeTools)
 		for _, m := range missing {
 			logger.Warn("includeTools names a tool the upstream did not report", "upstream", name, "tool", m)
 		}

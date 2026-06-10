@@ -25,10 +25,19 @@ func main() {
 		switch os.Args[1] {
 		case "init":
 			os.Exit(runInit(os.Args[2:], logger))
+		case "ls":
+			os.Exit(runLs(os.Args[2:], logger))
+		case "help", "-h", "--help":
+			printUsage()
+			os.Exit(0)
 		}
 	}
 
 	var configPath string
+	flag.Usage = func() {
+		printUsage()
+		flag.PrintDefaults()
+	}
 	flag.StringVar(&configPath, "config", "", "path to mcpfs config file; defaults to the global user config")
 	flag.Parse()
 
@@ -56,6 +65,11 @@ func main() {
 		os.Exit(1)
 	}
 	defer startup.Close()
+
+	for _, skipped := range startup.SkippedOptional {
+		logger.Warn("optional upstream skipped; restart mcpfs after fixing it",
+			"upstream", skipped.Name, "error", skipped.Err)
+	}
 
 	server, err := mcpfs.BuildServer(cfg, startup, logger)
 	if err != nil {
@@ -143,4 +157,16 @@ func main() {
 		logger.Error("unsupported transport", "transport", cfg.Server.Transport)
 		os.Exit(1)
 	}
+}
+
+func printUsage() {
+	os.Stderr.WriteString(`mcpfs - MCP aggregating gateway
+
+Usage:
+  mcpfs [-config path]   run the gateway with the configured transport
+  mcpfs init [-path p]   write a starter config with example mcpServers
+  mcpfs ls [-config p]   probe configured mcpServers and list their tools
+  mcpfs help             show this help
+
+`)
 }

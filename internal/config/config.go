@@ -14,6 +14,9 @@ import (
 //go:embed mcpfs.cfg.json
 var embeddedGlobalConfig []byte
 
+//go:embed mcpfs.starter.cfg.json
+var starterConfig []byte
+
 const GlobalConfigFileName = "mcpfs.cfg.json"
 
 type AuthMode string
@@ -134,12 +137,39 @@ func LoadOrCreateGlobal(path string) (Config, error) {
 			return Config{}, fmt.Errorf("create config dir: %w", err)
 		}
 
-		if err := os.WriteFile(path, embeddedGlobalConfig, 0o644); err != nil {
+		// 0600: configs may hold header/env secrets.
+		if err := os.WriteFile(path, embeddedGlobalConfig, 0o600); err != nil {
 			return Config{}, fmt.Errorf("write config: %w", err)
 		}
 	}
 
 	return Load(path)
+}
+
+// WriteStarter writes the commented starter config (example mcpServers
+// entries, disabled) to path unless a file already exists there. It reports
+// whether a new file was created.
+func WriteStarter(path string) (bool, error) {
+	if path == "" {
+		return false, fmt.Errorf("config path is required")
+	}
+
+	if _, err := os.Stat(path); err == nil {
+		return false, nil
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return false, fmt.Errorf("stat config: %w", err)
+	}
+
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return false, fmt.Errorf("create config dir: %w", err)
+	}
+
+	// 0600: configs may hold header/env secrets.
+	if err := os.WriteFile(path, starterConfig, 0o600); err != nil {
+		return false, fmt.Errorf("write config: %w", err)
+	}
+
+	return true, nil
 }
 
 func DefaultGlobalPath() (string, error) {

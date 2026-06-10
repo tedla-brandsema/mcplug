@@ -2,11 +2,11 @@ package mcpfs
 
 import "github.com/modelcontextprotocol/go-sdk/mcp"
 
-// filterTools applies the per-server allow/deny lists. With include set, only
+// FilterTools applies the per-server allow/deny lists. With include set, only
 // listed tools pass and missing reports include entries the upstream did not
 // offer; otherwise tools in exclude are dropped. Config validation guarantees
 // include and exclude are never both set.
-func filterTools(tools []*mcp.Tool, include, exclude []string) (filtered []*mcp.Tool, missing []string) {
+func FilterTools(tools []*mcp.Tool, include, exclude []string) (filtered []*mcp.Tool, missing []string) {
 	if len(include) > 0 {
 		byName := make(map[string]*mcp.Tool, len(tools))
 		for _, t := range tools {
