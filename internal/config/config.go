@@ -5,15 +5,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
-//go:embed mcpfs.cfg.json
+//go:embed mcplug.cfg.json
 var embeddedGlobalConfig []byte
 
-const GlobalConfigFileName = "mcpfs.cfg.json"
+//go:embed mcplug.starter.cfg.json
+var starterConfig []byte
+
+const GlobalConfigFileName = "mcplug.cfg.json"
 
 type AuthMode string
 
@@ -37,26 +41,38 @@ type AuthConfig struct {
 	AllowedSubjects []string `json:"allowed_subjects,omitempty"`
 }
 
-type Mode string
-
-const (
-	ModeRead      Mode = "read"
-	ModeReadWrite Mode = "read_write"
-)
-
-type CommandMode string
-
-const (
-	CommandModeDisabled   CommandMode = "disabled"
-	CommandModePredefined CommandMode = "predefined"
-	CommandModeUnguarded  CommandMode = "unguarded"
-)
-
 type Config struct {
-	Server   ServerConfig  `json:"server"`
-	Roots    []RootConfig  `json:"roots"`
-	Commands CommandConfig `json:"commands,omitempty"`
+	Server ServerConfig `json:"server"`
+
+	// MCPServers configures the upstream MCP servers whose tools MCPlug
+	// aggregates. The shape is compatible with the Claude/Cursor
+	// `mcpServers` convention; url, headers, disabled, optional, cwd,
+	// includeTools, and excludeTools are MCPlug extensions.
+	MCPServers map[string]MCPServer `json:"mcpServers,omitempty"`
 }
+
+type MCPServer struct {
+	// Stdio upstream: command is executed verbatim, never through a shell.
+	Command string            `json:"command,omitempty"`
+	Args    []string          `json:"args,omitempty"`
+	Env     map[string]string `json:"env,omitempty"`
+	Cwd     string            `json:"cwd,omitempty"`
+
+	// HTTP upstream.
+	URL     string            `json:"url,omitempty"`
+	Headers map[string]string `json:"headers,omitempty"`
+
+	// Disabled entries are ignored entirely. Optional entries may fail at
+	// startup without aborting MCPlug; their tools stay absent until restart.
+	Disabled bool `json:"disabled,omitempty"`
+	Optional bool `json:"optional,omitempty"`
+
+	IncludeTools []string `json:"includeTools,omitempty"`
+	ExcludeTools []string `json:"excludeTools,omitempty"`
+}
+
+// IsHTTP reports whether the entry is an HTTP upstream.
+func (s MCPServer) IsHTTP() bool { return s.URL != "" }
 
 type ServerConfig struct {
 	Name      string `json:"name"`
@@ -74,37 +90,6 @@ type ServerConfig struct {
 	AuthTokenEnv string `json:"auth_token_env,omitempty"`
 
 	NgrokURL string `json:"ngrok_url,omitempty"`
-}
-
-type RootConfig struct {
-	ID           string   `json:"id"`
-	Path         string   `json:"path"`
-	Mode         Mode     `json:"mode"`
-	Include      []string `json:"include"`
-	Exclude      []string `json:"exclude"`
-	UseGitignore bool     `json:"use_gitignore"`
-	MaxFileBytes int64    `json:"max_file_bytes"`
-}
-
-type CommandConfig struct {
-	Mode     CommandMode     `json:"mode,omitempty"`
-	Defaults CommandDefaults `json:"defaults,omitempty"`
-	Items    []CommandItem   `json:"items,omitempty"`
-}
-
-type CommandDefaults struct {
-	TimeoutSeconds int `json:"timeout_seconds,omitempty"`
-	MaxOutputBytes int `json:"max_output_bytes,omitempty"`
-}
-
-type CommandItem struct {
-	ID             string   `json:"id"`
-	Description    string   `json:"description,omitempty"`
-	RootID         string   `json:"root_id"`
-	Workdir        string   `json:"workdir,omitempty"`
-	Command        []string `json:"command"`
-	TimeoutSeconds int      `json:"timeout_seconds,omitempty"`
-	MaxOutputBytes int      `json:"max_output_bytes,omitempty"`
 }
 
 func Load(path string) (Config, error) {
@@ -152,12 +137,39 @@ func LoadOrCreateGlobal(path string) (Config, error) {
 			return Config{}, fmt.Errorf("create config dir: %w", err)
 		}
 
-		if err := os.WriteFile(path, embeddedGlobalConfig, 0o644); err != nil {
+		// 0600: configs may hold header/env secrets.
+		if err := os.WriteFile(path, embeddedGlobalConfig, 0o600); err != nil {
 			return Config{}, fmt.Errorf("write config: %w", err)
 		}
 	}
 
 	return Load(path)
+}
+
+// WriteStarter writes the commented starter config (example mcpServers
+// entries, disabled) to path unless a file already exists there. It reports
+// whether a new file was created.
+func WriteStarter(path string) (bool, error) {
+	if path == "" {
+		return false, fmt.Errorf("config path is required")
+	}
+
+	if _, err := os.Stat(path); err == nil {
+		return false, nil
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return false, fmt.Errorf("stat config: %w", err)
+	}
+
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return false, fmt.Errorf("create config dir: %w", err)
+	}
+
+	// 0600: configs may hold header/env secrets.
+	if err := os.WriteFile(path, starterConfig, 0o600); err != nil {
+		return false, fmt.Errorf("write config: %w", err)
+	}
+
+	return true, nil
 }
 
 func DefaultGlobalPath() (string, error) {
@@ -166,7 +178,30 @@ func DefaultGlobalPath() (string, error) {
 		return "", fmt.Errorf("resolve user config dir: %w", err)
 	}
 
-	return filepath.Join(dir, "mcpfs", GlobalConfigFileName), nil
+	return filepath.Join(dir, "mcplug", GlobalConfigFileName), nil
+}
+
+// WorldReadableWarning returns a non-empty warning when the config file at
+// path is world-readable while cfg carries headers or env values, which may
+// contain secrets. The caller decides how to log it.
+func WorldReadableWarning(path string, cfg Config) string {
+	hasSecrets := false
+	for _, srv := range cfg.MCPServers {
+		if len(srv.Headers) > 0 || len(srv.Env) > 0 {
+			hasSecrets = true
+			break
+		}
+	}
+	if !hasSecrets {
+		return ""
+	}
+
+	info, err := os.Stat(path)
+	if err != nil || info.Mode().Perm()&0o004 == 0 {
+		return ""
+	}
+
+	return fmt.Sprintf("config %s contains headers/env values but is world-readable; consider chmod 600", path)
 }
 
 func Decode(data []byte) (Config, error) {
@@ -216,88 +251,78 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("unsupported server.transport %q", c.Server.Transport)
 	}
 
-	seen := make(map[string]struct{}, len(c.Roots))
-	for i, root := range c.Roots {
-		if root.ID == "" {
-			return fmt.Errorf("roots[%d].id is required", i)
-		}
-		if _, ok := seen[root.ID]; ok {
-			return fmt.Errorf("duplicate root id %q", root.ID)
-		}
-		seen[root.ID] = struct{}{}
-
-		if root.Path == "" {
-			return fmt.Errorf("roots[%d].path is required", i)
-		}
-
-		switch root.Mode {
-		case ModeRead, ModeReadWrite:
-		default:
-			return fmt.Errorf("roots[%d].mode must be %q or %q", i, ModeRead, ModeReadWrite)
-		}
-
-		if root.MaxFileBytes < 0 {
-			return fmt.Errorf("roots[%d].max_file_bytes must be >= 0", i)
-		}
-	}
-
-	if err := c.Commands.Validate(seen); err != nil {
+	if err := c.validateMCPServers(); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (c *CommandConfig) Validate(rootIDs map[string]struct{}) error {
-	if c.Mode == "" {
-		c.Mode = CommandModeDisabled
-	}
+// validateMCPServers structurally validates every entry, including disabled
+// ones; it never checks command availability or network reachability.
+func (c *Config) validateMCPServers() error {
+	prefixes := make(map[string]string, len(c.MCPServers))
 
-	switch c.Mode {
-	case CommandModeDisabled, CommandModePredefined, CommandModeUnguarded:
-		// Valid.
-	default:
-		return fmt.Errorf("commands.mode must be %q, %q, or %q", CommandModeDisabled, CommandModePredefined, CommandModeUnguarded)
-	}
-
-	if c.Defaults.TimeoutSeconds < 0 {
-		return fmt.Errorf("commands.defaults.timeout_seconds must be >= 0")
-	}
-	if c.Defaults.MaxOutputBytes < 0 {
-		return fmt.Errorf("commands.defaults.max_output_bytes must be >= 0")
-	}
-
-	seen := make(map[string]struct{}, len(c.Items))
-	for i, item := range c.Items {
-		if item.ID == "" {
-			return fmt.Errorf("commands.items[%d].id is required", i)
-		}
-		if _, ok := seen[item.ID]; ok {
-			return fmt.Errorf("duplicate command id %q", item.ID)
-		}
-		seen[item.ID] = struct{}{}
-
-		if item.RootID == "" {
-			return fmt.Errorf("commands.items[%d].root_id is required", i)
-		}
-		if _, ok := rootIDs[item.RootID]; !ok {
-			return fmt.Errorf("commands.items[%d].root_id %q does not match a configured root", i, item.RootID)
+	for name, srv := range c.MCPServers {
+		if name == "" {
+			return fmt.Errorf("mcpServers entries must have a non-empty name")
 		}
 
-		if len(item.Command) == 0 {
-			return fmt.Errorf("commands.items[%d].command is required", i)
+		sanitized, err := SanitizeServerName(name)
+		if err != nil {
+			return fmt.Errorf("mcpServers[%q]: %w", name, err)
 		}
-		for j, arg := range item.Command {
-			if arg == "" {
-				return fmt.Errorf("commands.items[%d].command[%d] must not be empty", i, j)
+		if other, ok := prefixes[sanitized]; ok {
+			return fmt.Errorf("mcpServers[%q] and mcpServers[%q] both sanitize to tool prefix %q", name, other, sanitized)
+		}
+		prefixes[sanitized] = name
+
+		hasCommand := srv.Command != ""
+		hasURL := srv.URL != ""
+		switch {
+		case hasCommand && hasURL:
+			return fmt.Errorf("mcpServers[%q]: command and url are mutually exclusive", name)
+		case !hasCommand && !hasURL:
+			return fmt.Errorf("mcpServers[%q]: exactly one of command or url is required", name)
+		}
+
+		if hasURL {
+			u, err := url.Parse(srv.URL)
+			if err != nil {
+				return fmt.Errorf("mcpServers[%q]: invalid url: %w", name, err)
+			}
+			if u.Scheme != "http" && u.Scheme != "https" {
+				return fmt.Errorf("mcpServers[%q]: url scheme must be http or https", name)
+			}
+			if u.Host == "" {
+				return fmt.Errorf("mcpServers[%q]: url host is required", name)
+			}
+			if len(srv.Args) > 0 {
+				return fmt.Errorf("mcpServers[%q]: args only apply to command upstreams", name)
+			}
+			if len(srv.Env) > 0 {
+				return fmt.Errorf("mcpServers[%q]: env only applies to command upstreams", name)
+			}
+			if srv.Cwd != "" {
+				return fmt.Errorf("mcpServers[%q]: cwd only applies to command upstreams", name)
+			}
+		} else if len(srv.Headers) > 0 {
+			return fmt.Errorf("mcpServers[%q]: headers only apply to url upstreams", name)
+		}
+
+		for k := range srv.Env {
+			if k == "" {
+				return fmt.Errorf("mcpServers[%q]: env keys must not be empty", name)
+			}
+		}
+		for k := range srv.Headers {
+			if k == "" {
+				return fmt.Errorf("mcpServers[%q]: header keys must not be empty", name)
 			}
 		}
 
-		if item.TimeoutSeconds < 0 {
-			return fmt.Errorf("commands.items[%d].timeout_seconds must be >= 0", i)
-		}
-		if item.MaxOutputBytes < 0 {
-			return fmt.Errorf("commands.items[%d].max_output_bytes must be >= 0", i)
+		if len(srv.IncludeTools) > 0 && len(srv.ExcludeTools) > 0 {
+			return fmt.Errorf("mcpServers[%q]: includeTools and excludeTools are mutually exclusive", name)
 		}
 	}
 

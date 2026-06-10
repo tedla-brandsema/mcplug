@@ -1,0 +1,11 @@
+{
+  "server": {
+    "name": "mcplug",
+    "version": "2.0.0",
+    "transport": "stdio",
+    "auth": {
+      "mode": "none"
+    }
+  },
+  "mcpServers": {}
+}

@@ -1,97 +1,78 @@
 # Quick start
 
-Use this guide to run MCPFS locally with a read-only project root. This is the safest first setup because it avoids network exposure, file writes, and command execution.
+This guide runs MCPlug locally over stdio, aggregating the reference filesystem and git servers. It needs no network exposure.
 
 ## Before you begin
 
-You need:
+- Go 1.25+ to build MCPlug.
+- `npx` (Node.js) for the reference filesystem server.
+- `uvx` (uv) for the reference git server — optional.
 
-- Go installed.
-- A local clone of MCPFS.
-- A project directory that you are comfortable exposing read-only to a trusted MCP client.
-
-## Build MCPFS
-
-From the MCPFS repository root, run:
+## 1. Build
 
 ```bash
-go test ./...
-go build -o ./bin/mcpfs ./cmd/mcpfs
+git clone https://github.com/tedla-brandsema/mcplug.git
+cd mcplug
+go build -o ./bin/plug ./cmd/plug
 ```
 
-## Create project-local metadata config
-
-From the project you want to expose, run:
+## 2. Create a config
 
 ```bash
-/path/to/mcpfs/bin/mcpfs init
+./bin/plug init
 ```
 
-This writes `.mcpfs/project.cfg.json` for project overview detection. It does not expose the project by itself.
+This writes a starter config (mode 0600) to your user config directory (e.g. `~/.config/mcplug/mcplug.cfg.json`) with example entries that are disabled. Edit it:
 
-## Add a read-only project root
+```json
+{
+  "server": {
+    "name": "mcplug",
+    "version": "2.0.0",
+    "transport": "stdio"
+  },
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/absolute/path/to/project"]
+    },
+    "git": {
+      "command": "uvx",
+      "args": ["mcp-server-git", "--repository", "/absolute/path/to/project"]
+    }
+  }
+}
+```
 
-Add the current directory to the default global MCPFS config:
+## 3. Smoke-test
 
 ```bash
-/path/to/mcpfs/bin/mcpfs project add
+./bin/plug ls
 ```
 
-The added root uses read mode by default.
+`ls` probes every configured server and prints its tools (exposed name and original name) without starting any transport, tunnel, or listener. It exits non-zero if a required server fails.
 
-List configured roots:
-
-```bash
-/path/to/mcpfs/bin/mcpfs project ls
-```
-
-Expected output is a small table that includes the root id, `read` mode, and project path.
-
-## Start MCPFS
-
-Run MCPFS with the default STDIO transport:
-
-```bash
-/path/to/mcpfs/bin/mcpfs
-```
-
-Connect your local MCP client to that command.
-
-## Check the result
-
-From your MCP client, call `fs_roots`.
-
-Expected result:
-
-- The configured root is listed.
-- The root mode is `read`.
-- Absolute host paths are not exposed by the tool response.
-
-Then call `project_overview` for the configured root.
-
-Expected result:
-
-- MCPFS returns a bounded project summary.
-- Git status and recent commits are included when Git is available.
-- Files ignored by `.gitignore` or explicit exclude rules are not included.
-
-## Clean up
-
-To remove the root from the default global config, run:
-
-```bash
-/path/to/mcpfs/bin/mcpfs project rm
-```
-
-If you no longer want project-local overview rules, remove:
+Expected output shape:
 
 ```text
-.mcpfs/project.cfg.json
+filesystem (stdio) — running, 14 tool(s)
+  filesystem_read_file  (read_file)
+  ...
+```
+
+## 4. Run
+
+```bash
+./bin/plug
+```
+
+Connect any local MCP client to the `./bin/plug` command, or inspect interactively:
+
+```bash
+bunx @modelcontextprotocol/inspector ./bin/plug
 ```
 
 ## Next steps
 
-- Read [Security](security.md) before enabling writes, HTTP, ngrok, or commands.
-- Use [Configure local read/write access](how-to/configure-local-read-write.md) when you need writes.
-- Use [Add predefined commands](how-to/add-predefined-commands.md) when you want MCPFS to run known development commands.
-- Browse [Examples](../examples/) for complete scenarios.
+- Restrict tools with `includeTools`/`excludeTools` — see [configuration](configuration.md).
+- Serve over HTTP or expose remotely with ngrok — see [transports](transports.md) and read [security](security.md) first.

@@ -1,5 +1,30 @@
 # Changelog
 
+## v2.0.0
+
+### Breaking
+
+* The project is renamed **MCPFS → MCPlug**: binary `mcpfs` → `plug`, module path `github.com/tedla-brandsema/mcpfs` → `github.com/tedla-brandsema/mcplug`, global config `~/.config/mcpfs/mcpfs.cfg.json` → `~/.config/mcplug/mcplug.cfg.json`.
+* MCPFS is now a pure **MCP aggregating gateway**. All native tools are removed: `fs_*`, `git_*`, `project_overview`, `cmd_list`, `cmd_run`, `cmd_exec`.
+* The `roots` and `commands` config sections are removed, along with the `mcpfs project add|rm|ls` CLI and project-local `.mcpfs/project.cfg.json` configs.
+* MCPFS v1 behavior is preserved on the `legacy/v1` branch. See the README migration section for mapping v1 roots onto reference servers.
+
+### Added
+
+* `mcpServers` config map (Claude/Cursor-compatible shape) describing upstream MCP servers: stdio entries (`command`/`args`/`env`) and streamable-HTTP entries (`url`), with MCPFS extensions `headers`, `cwd`, `disabled`, `optional`, `includeTools`, and `excludeTools`.
+* Tool aggregation: every upstream tool is exposed as `<server>_<tool>` (server names sanitized to `[A-Za-z0-9_-]`, collision-checked at config validation).
+* Supervised stdio children: explicit lifecycle state machine, restart with exponential backoff on unexpected exit, healthy-period backoff reset, graceful shutdown on SIGINT/SIGTERM.
+* Required-by-default upstreams: a failing enabled upstream aborts startup unless marked `optional`.
+* 60-second timeout on upstream connect/list/call; upstream failures (restarting, unreachable, timed out) surface as MCP tool errors, not protocol failures.
+* `mcpfs ls`: probes all configured servers and lists exposed/original/filtered tool names without starting any transport; exits non-zero on required upstream failure.
+* `mcpfs init` now writes a 0600 starter config with disabled example entries.
+* Secret hygiene: header/env values are never logged, secret-like keys are redacted in config output, and world-readable configs containing such values produce a startup warning.
+
+### Changed
+
+* `github.com/modelcontextprotocol/go-sdk` upgraded v0.8.0 → v1.4.1.
+* Transports (`stdio`, `http`, `http_ngrok`) and auth modes (`none`, `bearer`, `oidc`) are unchanged and now serve the aggregated endpoint.
+
 ## v0.4.0
 
 ### Added

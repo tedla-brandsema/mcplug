@@ -1,151 +1,96 @@
 # Configuration
 
-MCPFS uses JSON configuration to define the server, roots, authentication, transports, and optional commands.
+MCPlug reads one JSON config file containing the gateway settings (`server`) and the upstream MCP servers (`mcpServers`).
 
-There are two configuration layers:
+Resolution order:
 
-| Config file | Purpose |
-| --- | --- |
-| `mcpfs.cfg.json` | Server settings, configured roots, and configured commands. The default global path is `os.UserConfigDir()/mcpfs/mcpfs.cfg.json`. |
-| `.mcpfs/project.cfg.json` | Project-local overview detection rules for a configured root. |
+1. `-config <path>` CLI flag, if given.
+2. Otherwise the global config at `<user config dir>/mcplug/mcplug.cfg.json` (e.g. `~/.config/mcplug/mcplug.cfg.json`), created from an embedded default if missing.
 
-## Global MCPFS config
+`plug init` writes a starter config with disabled example entries. Config files are created with mode 0600 because `headers` and `env` values may contain secrets; MCPlug warns at startup when a config containing such values is world-readable.
 
-The global config controls runtime behavior.
+## `server`
 
-Minimal read-only STDIO config:
+Unchanged from MCPFS v1.
+
+| Field | Values | Notes |
+| --- | --- | --- |
+| `name` | string | Required. MCP server name presented to clients. |
+| `version` | string | Required. |
+| `transport` | `stdio` (default), `http`, `http_ngrok` | See [transports](transports.md). |
+| `addr` | host:port | HTTP only; defaults to `127.0.0.1:8080`. |
+| `path` | `/mcp` (default) | HTTP only; must start with `/`. |
+| `auth` | object | HTTP only; see [transports](transports.md). Modes: `none`, `bearer`, `oidc`. |
+| `ngrok_url` | string | `http_ngrok` only; optional fixed ngrok domain. |
+
+## `mcpServers`
+
+A map of server name → entry. The shape is **compatible with** the `mcpServers` convention used by Claude Desktop and Cursor: `command`/`args`/`env` entries paste in verbatim. The remaining fields are MCPlug extensions.
 
 ```json
 {
-  "server": {
-    "name": "mcpfs",
-    "version": "0.4.0",
-    "transport": "stdio",
-    "auth": {
-      "mode": "none"
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path"],
+      "env": {"DEBUG": "1"},
+      "cwd": "/path",
+      "excludeTools": ["delete_file"]
+    },
+    "remote": {
+      "url": "https://example.com/mcp",
+      "headers": {"Authorization": "Bearer ..."},
+      "optional": true
+    },
+    "later": {
+      "command": "uvx",
+      "args": ["mcp-server-git"],
+      "disabled": true
     }
-  },
-  "roots": [
-    {
-      "id": "project",
-      "path": "/path/to/project",
-      "mode": "read",
-      "include": ["**/*"],
-      "exclude": ["**/.git/**", "**/.env", "**/.env.*"],
-      "use_gitignore": true,
-      "max_file_bytes": 262144
-    }
-  ],
-  "commands": {
-    "mode": "disabled"
   }
 }
 ```
 
-## Server settings
+### Fields
 
-Common server fields:
+| Field | Applies to | Description |
+| --- | --- | --- |
+| `command` | stdio | Executable to spawn. Run verbatim via `exec`, never through a shell. Exactly one of `command`/`url` is required. |
+| `args` | stdio | Argument vector. |
+| `env` | stdio | Extra environment variables, merged over the inherited environment (config wins). Values are never logged. |
+| `cwd` | stdio | Working directory for the child. *(MCPlug extension)* |
+| `url` | HTTP | Streamable-HTTP MCP endpoint (`http`/`https`). *(MCPlug extension)* |
+| `headers` | HTTP | Headers added to every request (e.g. `Authorization`). Values are never logged. *(MCPlug extension)* |
+| `disabled` | both | Entry is ignored entirely. Still validated structurally. *(MCPlug extension)* |
+| `optional` | both | Changes **startup-failure** behavior only: a failing optional server is logged and skipped instead of aborting startup. Its tools stay absent until MCPlug restarts. A successfully started optional server is supervised and restarted like any other. *(MCPlug extension)* |
+| `includeTools` | both | Allowlist of original tool names to expose. Mutually exclusive with `excludeTools`. Unknown names produce a startup warning. *(MCPlug extension)* |
+| `excludeTools` | both | Denylist of original tool names to hide. *(MCPlug extension)* |
 
-| Field | Description |
-| --- | --- |
-| `name` | MCP server name. |
-| `version` | MCP server version. |
-| `transport` | `stdio`, `http`, or `http_ngrok`. |
-| `addr` | HTTP bind address. Defaults to `127.0.0.1:8080` for HTTP transports. |
-| `path` | MCP HTTP path. Defaults to `/mcp`. |
-| `auth` | HTTP auth configuration. |
-| `ngrok_url` | Optional reserved ngrok URL or domain. |
+### Validation rules
 
-## Roots
+- Exactly one of `command` / `url` per entry.
+- `url` must be `http://` or `https://`.
+- `headers` only with `url`; `args`/`env`/`cwd` only with `command`.
+- `includeTools` and `excludeTools` are mutually exclusive.
+- Server names must be non-empty and must not collide after sanitization (see below).
+- Disabled entries get the same structural validation; no entry is ever checked for command availability or network reachability at validation time.
+- An empty `mcpServers` map is valid; MCPlug starts with a warning and exposes zero tools.
 
-Each root defines a local directory MCPFS can expose.
+## Tool naming
 
-| Field | Description |
-| --- | --- |
-| `id` | Stable root identifier used by MCP tools. |
-| `path` | Local filesystem path to expose. |
-| `mode` | `read` or `read_write`. |
-| `include` | Glob allowlist. Empty means all files not excluded are allowed. |
-| `exclude` | Glob denylist. |
-| `use_gitignore` | Apply `.gitignore` rules as an additional filter. |
-| `max_file_bytes` | Maximum readable or writable file size. Defaults to `262144` when set to `0`. |
+Every upstream tool is exposed as `<server>_<tool>`. The server name is sanitized to the tool-name-safe alphabet:
 
-Use narrow roots. Avoid exposing home directories, credential directories, or broad workspaces.
+- characters outside `[A-Za-z0-9_-]` become `_`;
+- runs of `_` collapse; leading/trailing `_` are trimmed;
+- a name that sanitizes to nothing is a config error;
+- a sanitized name not starting with a letter is prefixed with `server_`.
 
-## Access modes
+Names are always prefixed, so adding or removing a server never renames the tools of another server.
 
-`mode: "read"` allows inspection but not writes.
+## Lifecycle
 
-`mode: "read_write"` enables `fs_write` for that root. Writes still honor root boundaries, symlink checks, include/exclude rules, `.gitignore`, and file size limits.
-
-## Authentication settings
-
-HTTP transports support these auth modes:
-
-| Mode | Use case |
-| --- | --- |
-| `none` | Local-only HTTP or short-lived controlled development. Do not use on untrusted networks. |
-| `bearer` | Static bearer token loaded from an environment variable. |
-| `oidc` | JWT/OIDC validation through issuer, audience, JWKS, and identity allowlists. |
-
-Bearer example:
-
-```json
-"auth": {
-  "mode": "bearer",
-  "token_env": "MCPFS_TOKEN"
-}
-```
-
-OIDC example:
-
-```json
-"auth": {
-  "mode": "oidc",
-  "issuer": "https://issuer.example.com",
-  "audience": "mcpfs",
-  "jwks_url": "https://issuer.example.com/.well-known/jwks.json",
-  "allowed_subjects": ["user-or-client-subject-id"]
-}
-```
-
-At least one of `allowed_emails` or `allowed_subjects` must be configured for OIDC.
-
-## Commands
-
-Command execution is configured separately from root access.
-
-| Field | Description |
-| --- | --- |
-| `commands.mode` | `disabled`, `predefined`, or `unguarded`. Defaults to `disabled`. |
-| `commands.defaults.timeout_seconds` | Default command timeout. Defaults to `60` when unset. |
-| `commands.defaults.max_output_bytes` | Default combined stdout/stderr output limit. Defaults to `65536` when unset. |
-| `commands.items[].id` | Stable command id used by `cmd_run`. |
-| `commands.items[].description` | Optional human-readable description. |
-| `commands.items[].root_id` | Root id used to scope the command working directory. |
-| `commands.items[].workdir` | Relative working directory inside the root. Defaults to `.`. |
-| `commands.items[].command` | Fixed argv array to execute. The first item is the executable. |
-| `commands.items[].timeout_seconds` | Optional per-command timeout override. |
-| `commands.items[].max_output_bytes` | Optional per-command output limit override. |
-
-See [Commands](commands.md) for security guidance and examples.
-
-## Project-local config
-
-A project-local config lives at:
-
-```text
-.mcpfs/project.cfg.json
-```
-
-It customizes project overview detection rules for a configured root. When present, it is merged with the global or user project registry for that root only.
-
-Create it with:
-
-```bash
-mcpfs init
-```
-
-## Reference
-
-For exact fields, accepted values, defaults, and compatibility notes, see [Configuration schema](reference/config-schema.md).
+- **Startup:** all enabled servers are started eagerly and their tools listed once. A required server failing aborts startup; optional failures are skipped.
+- **Supervision:** stdio children that exit unexpectedly are restarted with exponential backoff (0.5s–30s, reset after 60s healthy). While a server restarts, its tool calls return tool errors ("upstream restarting") rather than protocol failures.
+- **Timeouts:** upstream connect/list/call operations are bounded at 60 seconds; a timeout surfaces as a tool error.
+- **Snapshot:** the aggregated tool list is fixed at startup. Restart MCPlug to pick up upstream tool changes.
+- **Shutdown:** SIGINT/SIGTERM stops the transport first, then terminates all children gracefully (stdin close → SIGTERM → kill).

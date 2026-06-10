@@ -7,9 +7,8 @@
 *.dll
 *.so
 *.dylib
-.mcpfs/
 bin/
-/mcpfs
+/plug
 
 # Test binary, built with `go test -c`
 *.test
@@ -35,3 +34,4 @@ go.work.sum
 *.njsproj
 *.sln
 *.sw?
+graphify-out/

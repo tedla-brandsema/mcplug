@@ -1,31 +1,18 @@
-# MCPFS examples
+# MCPlug examples
 
-These examples show common MCPFS operating modes. Start with local read-only access, then enable higher-risk capabilities only when you need them.
-
-## Choose an example
+Each example aggregates the reference filesystem server (restricted to read-style tools via `includeTools`) and the reference git server (marked `optional`), and differs only in how the endpoint is exposed and authenticated.
 
 | Example | Use when | Risk level |
 | --- | --- | --- |
-| [Local read-only](local-read-only/) | You want a local MCP client to inspect a project. | Lowest |
-| [Local read/write](local-read-write/) | You want a trusted local client to modify files inside a narrow root. | Medium |
-| [Predefined commands](predefined-commands/) | You want a client to run a small allowlist of known commands. | Medium |
-| [HTTP bearer](http-bearer/) | You need HTTP transport with a shared token. | Medium |
-| [OIDC](oidc/) | You need HTTP transport with identity-provider-backed JWT validation. | Medium to high |
-| [ngrok development](ngrok-dev/) | You need a short-lived public development tunnel. | High |
+| [HTTP bearer](http-bearer/) | A local/trusted-network client connects over HTTP with a shared token. | Medium |
+| [OIDC](oidc/) | You need identity-provider-backed JWT validation on the HTTP endpoint. | Medium to high |
+| [ngrok development](ngrok-dev/) | A remote client (e.g. a ChatGPT connector) needs a short-lived public URL. | High |
+
+For plain local stdio use no example is needed — see the [quick start](../docs/quick-start.md).
 
 ## Safety notes
 
-- Keep roots narrow.
-- Use `mode: "read"` unless writes are required.
-- Keep `commands.mode: "disabled"` unless command execution is required.
-- Prefer predefined commands over unguarded commands.
-- Require bearer or OIDC auth for HTTP and tunnels.
-- Do not commit real tokens, private paths, or credentials.
-
-## Related docs
-
-- [Quick start](../docs/quick-start.md)
-- [Security](../docs/security.md)
-- [Configuration](../docs/configuration.md)
-- [Transports](../docs/transports.md)
-- [Commands](../docs/commands.md)
+- Replace `/absolute/path/to/project` before running; smoke-test with `plug ls -config <file>`.
+- Keep `includeTools` narrow: every connected client gets every exposed tool.
+- Never expose the HTTP endpoint publicly without `bearer` or `oidc` auth.
+- Read [docs/security.md](../docs/security.md) before using `http` or `http_ngrok`.

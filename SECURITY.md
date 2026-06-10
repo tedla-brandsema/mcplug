@@ -1,32 +1,27 @@
 # Security
 
-MCPFS is a power tool.
+MCPlug is a power tool.
 
-When configured with writable roots or command execution, connected MCP clients can modify files and run programs on your machine. Treat access to an MCPFS server like access to your terminal.
+It spawns the MCP servers you configure and exposes their tools — potentially to remote clients. Treat access to an MCPlug endpoint like access to everything its configured upstream servers can do.
 
 ## High-risk configuration
 
 The following settings intentionally grant powerful capabilities:
 
-* root `mode: "read_write"`
-* `commands.mode: "predefined"`
-* `commands.mode: "unguarded"`
+* upstream servers with write, delete, or execute tools (MCPlug does not sandbox them; stdio children run with MCPlug's own OS privileges)
 * HTTP or ngrok transports exposed outside your local machine
 * `auth.mode: "none"` on network transports
 
-`commands.mode: "unguarded"` exposes `cmd_exec`, which allows connected MCP clients to run arbitrary argv commands from root-scoped working directories. This is terminal-level authority.
-
 ## Recommendations
 
-* Run MCPFS locally or only on networks you control.
-* Connect only MCP clients you trust.
-* Keep roots as narrow as practical.
-* Prefer `mode: "read"` unless write access is required.
-* Prefer `commands.mode: "disabled"` or `commands.mode: "predefined"` unless arbitrary command execution is required.
-* Use bearer or OIDC auth for HTTP transports.
-* Do not expose MCPFS with `auth.mode: "none"` to untrusted networks.
-* Review config files before starting the server.
-* Treat project scripts and build tools as executable code.
+* Configure only upstream MCP servers you trust; they run as your user.
+* Connect only MCP clients you trust: every client gets every aggregated tool.
+* Use `includeTools`/`excludeTools` to narrow what each upstream exposes.
+* Use bearer or OIDC auth for HTTP transports; never expose `auth.mode: "none"` to untrusted networks.
+* Keep config files private (`chmod 600`): `headers` and `env` values may contain secrets. MCPlug never logs these values and warns when such a config is world-readable.
+* Review config files before starting the server; commands run verbatim via `exec` (never through a shell).
+
+See [docs/security.md](docs/security.md) for the full trust-boundary discussion.
 
 ## Reporting vulnerabilities
 

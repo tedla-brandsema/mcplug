@@ -52,7 +52,7 @@ func TestValidateLegacyRequireAuthMapsToBearer(t *testing.T) {
 	cfg.Server.Transport = "http"
 	cfg.Server.Auth = nil
 	cfg.Server.RequireAuth = true
-	cfg.Server.AuthTokenEnv = "MCPFS_TOKEN"
+	cfg.Server.AuthTokenEnv = "MCPLUG_TOKEN"
 
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("Validate returned error: %v", err)
@@ -64,8 +64,8 @@ func TestValidateLegacyRequireAuthMapsToBearer(t *testing.T) {
 	if cfg.Server.Auth.Mode != AuthModeBearer {
 		t.Fatalf("Auth.Mode = %q, want %q", cfg.Server.Auth.Mode, AuthModeBearer)
 	}
-	if cfg.Server.Auth.TokenEnv != "MCPFS_TOKEN" {
-		t.Fatalf("Auth.TokenEnv = %q, want %q", cfg.Server.Auth.TokenEnv, "MCPFS_TOKEN")
+	if cfg.Server.Auth.TokenEnv != "MCPLUG_TOKEN" {
+		t.Fatalf("Auth.TokenEnv = %q, want %q", cfg.Server.Auth.TokenEnv, "MCPLUG_TOKEN")
 	}
 }
 
@@ -89,14 +89,14 @@ func TestValidateExplicitBearerFallsBackToLegacyTokenEnv(t *testing.T) {
 	cfg.Server.Auth = &AuthConfig{
 		Mode: AuthModeBearer,
 	}
-	cfg.Server.AuthTokenEnv = "MCPFS_TOKEN"
+	cfg.Server.AuthTokenEnv = "MCPLUG_TOKEN"
 
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("Validate returned error: %v", err)
 	}
 
-	if cfg.Server.Auth.TokenEnv != "MCPFS_TOKEN" {
-		t.Fatalf("Auth.TokenEnv = %q, want %q", cfg.Server.Auth.TokenEnv, "MCPFS_TOKEN")
+	if cfg.Server.Auth.TokenEnv != "MCPLUG_TOKEN" {
+		t.Fatalf("Auth.TokenEnv = %q, want %q", cfg.Server.Auth.TokenEnv, "MCPLUG_TOKEN")
 	}
 }
 
@@ -192,185 +192,30 @@ func TestValidateRejectsUnsupportedTransport(t *testing.T) {
 	assertErrorContains(t, err, "unsupported server.transport")
 }
 
-func TestValidateRejectsDuplicateRootID(t *testing.T) {
-	cfg := validConfig()
-	cfg.Roots = append(cfg.Roots, cfg.Roots[0])
-
-	err := cfg.Validate()
-	if err == nil {
-		t.Fatal("Validate returned nil error")
-	}
-	assertErrorContains(t, err, "duplicate root id")
-}
-
-func TestValidateRejectsInvalidRootMode(t *testing.T) {
-	cfg := validConfig()
-	cfg.Roots[0].Mode = "write"
-
-	err := cfg.Validate()
-	if err == nil {
-		t.Fatal("Validate returned nil error")
-	}
-	assertErrorContains(t, err, "mode must be")
-}
-
-func TestValidateRejectsNegativeMaxFileBytes(t *testing.T) {
-	cfg := validConfig()
-	cfg.Roots[0].MaxFileBytes = -1
-
-	err := cfg.Validate()
-	if err == nil {
-		t.Fatal("Validate returned nil error")
-	}
-	assertErrorContains(t, err, "max_file_bytes must be >= 0")
-
-}
-
-func TestValidateAllowsEmptyRoots(t *testing.T) {
-	cfg := validConfig()
-	cfg.Roots = nil
-
-	if err := cfg.Validate(); err != nil {
-		t.Fatalf("Validate returned error: %v", err)
-	}
-}
-
-func TestValidateDefaultsCommandModeToDisabled(t *testing.T) {
-	cfg := validConfig()
-
-	if err := cfg.Validate(); err != nil {
-		t.Fatalf("Validate returned error: %v", err)
-	}
-
-	if cfg.Commands.Mode != CommandModeDisabled {
-		t.Fatalf("Commands.Mode = %q, want %q", cfg.Commands.Mode, CommandModeDisabled)
-	}
-}
-
-func TestValidateAllowsPredefinedCommands(t *testing.T) {
-	cfg := validConfig()
-	cfg.Commands = CommandConfig{
-		Mode: CommandModePredefined,
-		Defaults: CommandDefaults{
-			TimeoutSeconds: 30,
-			MaxOutputBytes: 1024,
-		},
-		Items: []CommandItem{
-			{
-				ID:      "test",
-				RootID:  "repo",
-				Workdir: ".",
-				Command: []string{"go", "test", "./..."},
-			},
-		},
-	}
-
-	if err := cfg.Validate(); err != nil {
-		t.Fatalf("Validate returned error: %v", err)
-	}
-}
-
-func TestValidateRejectsInvalidCommandMode(t *testing.T) {
-	cfg := validConfig()
-	cfg.Commands.Mode = "wild"
-
-	err := cfg.Validate()
-	if err == nil {
-		t.Fatal("Validate returned nil error")
-	}
-	assertErrorContains(t, err, "commands.mode must be")
-}
-
-func TestValidateRejectsDuplicateCommandID(t *testing.T) {
-	cfg := validConfig()
-	cfg.Commands = CommandConfig{
-		Mode: CommandModePredefined,
-		Items: []CommandItem{
-			{ID: "test", RootID: "repo", Command: []string{"go", "test"}},
-			{ID: "test", RootID: "repo", Command: []string{"go", "test"}},
-		},
-	}
-
-	err := cfg.Validate()
-	if err == nil {
-		t.Fatal("Validate returned nil error")
-	}
-	assertErrorContains(t, err, "duplicate command id")
-}
-
-func TestValidateRejectsCommandUnknownRoot(t *testing.T) {
-	cfg := validConfig()
-	cfg.Commands = CommandConfig{
-		Mode: CommandModePredefined,
-		Items: []CommandItem{
-			{ID: "test", RootID: "missing", Command: []string{"go", "test"}},
-		},
-	}
-
-	err := cfg.Validate()
-	if err == nil {
-		t.Fatal("Validate returned nil error")
-	}
-	assertErrorContains(t, err, "does not match a configured root")
-}
-
-func TestValidateRejectsCommandWithoutArgv(t *testing.T) {
-	cfg := validConfig()
-	cfg.Commands = CommandConfig{
-		Mode: CommandModePredefined,
-		Items: []CommandItem{
-			{ID: "test", RootID: "repo"},
-		},
-	}
-
-	err := cfg.Validate()
-	if err == nil {
-		t.Fatal("Validate returned nil error")
-	}
-	assertErrorContains(t, err, "command is required")
-}
-
-func TestValidateRejectsNegativeCommandDefaults(t *testing.T) {
-	cfg := validConfig()
-	cfg.Commands.Defaults.TimeoutSeconds = -1
-
-	err := cfg.Validate()
-	if err == nil {
-		t.Fatal("Validate returned nil error")
-	}
-	assertErrorContains(t, err, "commands.defaults.timeout_seconds must be >= 0")
-}
-
 func TestDecodeEmbeddedGlobalConfig(t *testing.T) {
 	cfg, err := Decode(embeddedGlobalConfig)
 	if err != nil {
 		t.Fatalf("Decode returned error: %v", err)
 	}
 
-	if cfg.Server.Name != "mcpfs" {
-		t.Fatalf("Server.Name = %q, want mcpfs", cfg.Server.Name)
+	if cfg.Server.Name != "mcplug" {
+		t.Fatalf("Server.Name = %q, want mcplug", cfg.Server.Name)
 	}
 	if cfg.Server.Transport != "stdio" {
 		t.Fatalf("Server.Transport = %q, want stdio", cfg.Server.Transport)
 	}
-	if len(cfg.Roots) != 0 {
-		t.Fatalf("len(Roots) = %d, want 0", len(cfg.Roots))
-	}
-	if cfg.Commands.Mode != CommandModeDisabled {
-		t.Fatalf("Commands.Mode = %q, want %q", cfg.Commands.Mode, CommandModeDisabled)
-	}
 }
 
 func TestLoadOrCreateGlobalWritesEmbeddedConfig(t *testing.T) {
-	configPath := filepath.Join(t.TempDir(), "mcpfs", GlobalConfigFileName)
+	configPath := filepath.Join(t.TempDir(), "mcplug", GlobalConfigFileName)
 
 	cfg, err := LoadOrCreateGlobal(configPath)
 	if err != nil {
 		t.Fatalf("LoadOrCreateGlobal returned error: %v", err)
 	}
 
-	if cfg.Server.Name != "mcpfs" {
-		t.Fatalf("Server.Name = %q, want mcpfs", cfg.Server.Name)
+	if cfg.Server.Name != "mcplug" {
+		t.Fatalf("Server.Name = %q, want mcplug", cfg.Server.Name)
 	}
 
 	if _, err := os.Stat(configPath); err != nil {
@@ -379,15 +224,14 @@ func TestLoadOrCreateGlobalWritesEmbeddedConfig(t *testing.T) {
 }
 
 func TestLoadOrCreateGlobalLoadsExistingConfig(t *testing.T) {
-	configPath := filepath.Join(t.TempDir(), "mcpfs", GlobalConfigFileName)
+	configPath := filepath.Join(t.TempDir(), "mcplug", GlobalConfigFileName)
 
 	data := []byte(`{
 		"server": {
-			"name": "custom-mcpfs",
+			"name": "custom-mcplug",
 			"version": "9.9.9",
 			"transport": "stdio"
-		},
-		"roots": []
+		}
 	}`)
 
 	if err := os.MkdirAll(filepath.Dir(configPath), 0o755); err != nil {
@@ -402,8 +246,8 @@ func TestLoadOrCreateGlobalLoadsExistingConfig(t *testing.T) {
 		t.Fatalf("LoadOrCreateGlobal returned error: %v", err)
 	}
 
-	if cfg.Server.Name != "custom-mcpfs" {
-		t.Fatalf("Server.Name = %q, want custom-mcpfs", cfg.Server.Name)
+	if cfg.Server.Name != "custom-mcplug" {
+		t.Fatalf("Server.Name = %q, want custom-mcplug", cfg.Server.Name)
 	}
 }
 
@@ -412,11 +256,10 @@ func TestLoadOrCreateUsesExplicitConfigPath(t *testing.T) {
 
 	data := []byte(`{
 		"server": {
-			"name": "explicit-mcpfs",
+			"name": "explicit-mcplug",
 			"version": "1.2.3",
 			"transport": "stdio"
-		},
-		"roots": []
+		}
 	}`)
 
 	if err := os.WriteFile(configPath, data, 0o644); err != nil {
@@ -431,28 +274,17 @@ func TestLoadOrCreateUsesExplicitConfigPath(t *testing.T) {
 	if resolved != configPath {
 		t.Fatalf("resolved = %q, want %q", resolved, configPath)
 	}
-	if cfg.Server.Name != "explicit-mcpfs" {
-		t.Fatalf("Server.Name = %q, want explicit-mcpfs", cfg.Server.Name)
+	if cfg.Server.Name != "explicit-mcplug" {
+		t.Fatalf("Server.Name = %q, want explicit-mcplug", cfg.Server.Name)
 	}
 }
 
 func validConfig() Config {
 	return Config{
 		Server: ServerConfig{
-			Name:      "mcpfs",
+			Name:      "mcplug",
 			Version:   "0.2.0",
 			Transport: "stdio",
-		},
-		Roots: []RootConfig{
-			{
-				ID:           "repo",
-				Path:         ".",
-				Mode:         ModeRead,
-				Include:      []string{"**/*.go"},
-				Exclude:      []string{"**/.git/**"},
-				UseGitignore: true,
-				MaxFileBytes: 262144,
-			},
 		},
 	}
 }
@@ -463,7 +295,7 @@ func validOIDCConfig() Config {
 	cfg.Server.Auth = &AuthConfig{
 		Mode:          AuthModeOIDC,
 		Issuer:        "https://issuer.example.com",
-		Audience:      "mcpfs",
+		Audience:      "mcplug",
 		JWKSURL:       "https://issuer.example.com/jwks",
 		AllowedEmails: []string{"you@example.com"},
 	}

@@ -1,60 +1,20 @@
 # OIDC example
 
-This example shows how to configure MCPFS as an HTTP MCP server that validates JWTs from an external identity provider.
+Runs the gateway over HTTP with JWT validation against an external identity provider: issuer, audience, expiry, and a subject/email allowlist, with keys fetched from the provider's JWKS endpoint.
 
-## Scenario
+## Run
 
-You need HTTP access to MCPFS, but you want identity-provider-backed authentication instead of a shared static token.
+1. Edit `mcplug.cfg.json`:
+   - replace `/absolute/path/to/project` in both `mcpServers` entries;
+   - set `auth.issuer`, `auth.audience`, and `auth.jwks_url` for your provider;
+   - set `auth.allowed_subjects` (or use `allowed_emails`) to the identities allowed in.
+2. Smoke-test and start:
 
-## User goal
+   ```bash
+   plug ls -config mcplug.cfg.json
+   plug -config mcplug.cfg.json
+   ```
 
-Run MCPFS with HTTP transport and OIDC/JWT validation.
+## Connect
 
-## Files
-
-- `README.md` — this guide.
-- `mcpfs.cfg.json` — example OIDC config with placeholder issuer, audience, JWKS, and identity allowlist values.
-
-## Command flow
-
-Build MCPFS:
-
-```bash
-go build -o ./bin/mcpfs ./cmd/mcpfs
-```
-
-Edit `examples/oidc/mcpfs.cfg.json` and replace the placeholder values:
-
-- `issuer`
-- `audience`
-- `jwks_url`
-- `allowed_subjects` or `allowed_emails`
-
-Run the server:
-
-```bash
-./bin/mcpfs -config examples/oidc/mcpfs.cfg.json
-```
-
-Configure your MCP client to connect to:
-
-```text
-http://127.0.0.1:8080/mcp
-```
-
-## Expected output
-
-- Requests without a JWT are rejected.
-- Requests with an invalid JWT are rejected.
-- Requests with the wrong issuer, audience, or identity are rejected.
-- Requests with a valid JWT and allowed identity reach the MCP handler.
-
-## Security notes
-
-OIDC configuration is security-critical. Validate issuer, audience, signature, expiry, and identity allowlists. Do not use placeholder values outside local testing.
-
-## Related docs
-
-- [Configure OIDC authentication](../../docs/how-to/configure-oidc.md)
-- [Authentication model](../../docs/advanced/authentication-model.md)
-- [Security](../../docs/security.md)
+Clients send `Authorization: Bearer <JWT>` where the JWT is issued by the configured provider for the configured audience. Invalid or unlisted identities receive HTTP 401; JWKS fetch failures surface as HTTP 500.
