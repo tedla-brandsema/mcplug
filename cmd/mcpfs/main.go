@@ -6,6 +6,9 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -44,7 +47,8 @@ func main() {
 		logger.Warn("no mcpServers configured; the gateway will expose zero tools")
 	}
 
-	ctx := context.Background()
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
 	startup, err := upstream.StartAll(ctx, cfg, logger)
 	if err != nil {
@@ -120,6 +124,15 @@ func main() {
 			"path", cfg.Server.Path,
 			"auth_mode", cfg.Server.Auth.Mode,
 		)
+
+		// Shut the listener down before the deferred startup.Close()
+		// terminates the upstream children.
+		go func() {
+			<-ctx.Done()
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			_ = httpServer.Shutdown(shutdownCtx)
+		}()
 
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logger.Error("run http server", "error", err)

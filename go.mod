@@ -22,8 +22,8 @@ require (
 )
 
 require (
-	github.com/google/jsonschema-go v0.4.2 // indirect
-	github.com/jpillora/backoff v1.0.0 // indirect
+	github.com/google/jsonschema-go v0.4.2
+	github.com/jpillora/backoff v1.0.0
 	github.com/lestrrat-go/jwx/v3 v3.1.0
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	go.uber.org/multierr v1.11.0 // indirect

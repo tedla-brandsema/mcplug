@@ -44,7 +44,9 @@ func New(name string, cfg config.MCPServer, logger *slog.Logger) Upstream {
 	if cfg.IsHTTP() {
 		return newHTTPUpstream(name, cfg, logger)
 	}
-	return newStdioUpstream(name, cfg, logger)
+	// stdio children get restart supervision; HTTP upstreams are stateless
+	// per-call sessions and need none.
+	return newSupervisor(name, cfg, logger)
 }
 
 func clientImplementation() *mcp.Implementation {
