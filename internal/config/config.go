@@ -37,25 +37,8 @@ type AuthConfig struct {
 	AllowedSubjects []string `json:"allowed_subjects,omitempty"`
 }
 
-type Mode string
-
-const (
-	ModeRead      Mode = "read"
-	ModeReadWrite Mode = "read_write"
-)
-
-type CommandMode string
-
-const (
-	CommandModeDisabled   CommandMode = "disabled"
-	CommandModePredefined CommandMode = "predefined"
-	CommandModeUnguarded  CommandMode = "unguarded"
-)
-
 type Config struct {
-	Server   ServerConfig  `json:"server"`
-	Roots    []RootConfig  `json:"roots"`
-	Commands CommandConfig `json:"commands,omitempty"`
+	Server ServerConfig `json:"server"`
 }
 
 type ServerConfig struct {
@@ -74,37 +57,6 @@ type ServerConfig struct {
 	AuthTokenEnv string `json:"auth_token_env,omitempty"`
 
 	NgrokURL string `json:"ngrok_url,omitempty"`
-}
-
-type RootConfig struct {
-	ID           string   `json:"id"`
-	Path         string   `json:"path"`
-	Mode         Mode     `json:"mode"`
-	Include      []string `json:"include"`
-	Exclude      []string `json:"exclude"`
-	UseGitignore bool     `json:"use_gitignore"`
-	MaxFileBytes int64    `json:"max_file_bytes"`
-}
-
-type CommandConfig struct {
-	Mode     CommandMode     `json:"mode,omitempty"`
-	Defaults CommandDefaults `json:"defaults,omitempty"`
-	Items    []CommandItem   `json:"items,omitempty"`
-}
-
-type CommandDefaults struct {
-	TimeoutSeconds int `json:"timeout_seconds,omitempty"`
-	MaxOutputBytes int `json:"max_output_bytes,omitempty"`
-}
-
-type CommandItem struct {
-	ID             string   `json:"id"`
-	Description    string   `json:"description,omitempty"`
-	RootID         string   `json:"root_id"`
-	Workdir        string   `json:"workdir,omitempty"`
-	Command        []string `json:"command"`
-	TimeoutSeconds int      `json:"timeout_seconds,omitempty"`
-	MaxOutputBytes int      `json:"max_output_bytes,omitempty"`
 }
 
 func Load(path string) (Config, error) {
@@ -214,91 +166,6 @@ func (c *Config) Validate() error {
 
 	default:
 		return fmt.Errorf("unsupported server.transport %q", c.Server.Transport)
-	}
-
-	seen := make(map[string]struct{}, len(c.Roots))
-	for i, root := range c.Roots {
-		if root.ID == "" {
-			return fmt.Errorf("roots[%d].id is required", i)
-		}
-		if _, ok := seen[root.ID]; ok {
-			return fmt.Errorf("duplicate root id %q", root.ID)
-		}
-		seen[root.ID] = struct{}{}
-
-		if root.Path == "" {
-			return fmt.Errorf("roots[%d].path is required", i)
-		}
-
-		switch root.Mode {
-		case ModeRead, ModeReadWrite:
-		default:
-			return fmt.Errorf("roots[%d].mode must be %q or %q", i, ModeRead, ModeReadWrite)
-		}
-
-		if root.MaxFileBytes < 0 {
-			return fmt.Errorf("roots[%d].max_file_bytes must be >= 0", i)
-		}
-	}
-
-	if err := c.Commands.Validate(seen); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (c *CommandConfig) Validate(rootIDs map[string]struct{}) error {
-	if c.Mode == "" {
-		c.Mode = CommandModeDisabled
-	}
-
-	switch c.Mode {
-	case CommandModeDisabled, CommandModePredefined, CommandModeUnguarded:
-		// Valid.
-	default:
-		return fmt.Errorf("commands.mode must be %q, %q, or %q", CommandModeDisabled, CommandModePredefined, CommandModeUnguarded)
-	}
-
-	if c.Defaults.TimeoutSeconds < 0 {
-		return fmt.Errorf("commands.defaults.timeout_seconds must be >= 0")
-	}
-	if c.Defaults.MaxOutputBytes < 0 {
-		return fmt.Errorf("commands.defaults.max_output_bytes must be >= 0")
-	}
-
-	seen := make(map[string]struct{}, len(c.Items))
-	for i, item := range c.Items {
-		if item.ID == "" {
-			return fmt.Errorf("commands.items[%d].id is required", i)
-		}
-		if _, ok := seen[item.ID]; ok {
-			return fmt.Errorf("duplicate command id %q", item.ID)
-		}
-		seen[item.ID] = struct{}{}
-
-		if item.RootID == "" {
-			return fmt.Errorf("commands.items[%d].root_id is required", i)
-		}
-		if _, ok := rootIDs[item.RootID]; !ok {
-			return fmt.Errorf("commands.items[%d].root_id %q does not match a configured root", i, item.RootID)
-		}
-
-		if len(item.Command) == 0 {
-			return fmt.Errorf("commands.items[%d].command is required", i)
-		}
-		for j, arg := range item.Command {
-			if arg == "" {
-				return fmt.Errorf("commands.items[%d].command[%d] must not be empty", i, j)
-			}
-		}
-
-		if item.TimeoutSeconds < 0 {
-			return fmt.Errorf("commands.items[%d].timeout_seconds must be >= 0", i)
-		}
-		if item.MaxOutputBytes < 0 {
-			return fmt.Errorf("commands.items[%d].max_output_bytes must be >= 0", i)
-		}
 	}
 
 	return nil

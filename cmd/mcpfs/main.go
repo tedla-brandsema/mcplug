@@ -21,8 +21,6 @@ func main() {
 		switch os.Args[1] {
 		case "init":
 			os.Exit(runInit(os.Args[2:], logger))
-		case "project":
-			os.Exit(runProject(os.Args[2:], logger))
 		}
 	}
 
@@ -48,7 +46,7 @@ func main() {
 
 	switch cfg.Server.Transport {
 	case "stdio":
-		logger.Info("starting mcpfs", "transport", "stdio", "roots", len(cfg.Roots))
+		logger.Info("starting mcpfs", "transport", "stdio")
 
 		if err := server.MCP.Run(ctx, &mcp.StdioTransport{}); err != nil {
 			logger.Error("run stdio server", "error", err)
@@ -106,7 +104,6 @@ func main() {
 			"addr", cfg.Server.Addr,
 			"path", cfg.Server.Path,
 			"auth_mode", cfg.Server.Auth.Mode,
-			"roots", len(cfg.Roots),
 		)
 
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
