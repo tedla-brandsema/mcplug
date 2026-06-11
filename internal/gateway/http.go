@@ -14,6 +14,12 @@ type HTTPOptions struct {
 	Path          string
 	Authenticator auth.Authenticator
 	Logger        *slog.Logger
+
+	// Tunneled indicates requests reach this loopback listener through a
+	// public tunnel (e.g. ngrok), so the Host header legitimately differs
+	// from the loopback address and the SDK's DNS-rebinding protection
+	// must be disabled.
+	Tunneled bool
 }
 
 func (s *Server) HTTPHandler(opts HTTPOptions) (http.Handler, error) {
@@ -29,7 +35,9 @@ func (s *Server) HTTPHandler(opts HTTPOptions) (http.Handler, error) {
 
 	mcpHandler := mcp.NewStreamableHTTPHandler(func(req *http.Request) *mcp.Server {
 		return s.MCP
-	}, nil)
+	}, &mcp.StreamableHTTPOptions{
+		DisableLocalhostProtection: opts.Tunneled,
+	})
 
 	authenticator := opts.Authenticator
 	if authenticator == nil {

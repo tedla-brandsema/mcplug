@@ -105,6 +105,7 @@ func main() {
 			Path:          cfg.Server.Path,
 			Authenticator: authenticator,
 			Logger:        logger,
+			Tunneled:      cfg.Server.Transport == "http_ngrok",
 		})
 		if err != nil {
 			logger.Error("create http handler", "error", err)
