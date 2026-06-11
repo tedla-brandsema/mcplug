@@ -62,7 +62,7 @@ func testTool(name string) *mcp.Tool {
 
 func gatewayConfig(servers map[string]config.MCPServer) config.Config {
 	return config.Config{
-		Server:     config.ServerConfig{Name: "mcplug", Version: "2.0.0", Transport: "stdio"},
+		Server:     config.ServerConfig{Name: "mcplug", Version: "0.5.0", Transport: "stdio"},
 		MCPServers: servers,
 	}
 }

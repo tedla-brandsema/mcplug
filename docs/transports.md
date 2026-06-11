@@ -7,7 +7,7 @@ MCPlug serves the aggregated MCP endpoint over one of three transports, configur
 For local MCP clients that spawn the server themselves (Claude Desktop, IDEs, the MCP Inspector).
 
 ```json
-{"server": {"name": "mcplug", "version": "2.0.0", "transport": "stdio"}}
+{"server": {"name": "mcplug", "version": "0.5.0", "transport": "stdio"}}
 ```
 
 Client config (Claude Desktop style):
@@ -28,7 +28,7 @@ Streamable HTTP on a local address. `GET /healthz` reports liveness.
 {
   "server": {
     "name": "mcplug",
-    "version": "2.0.0",
+    "version": "0.5.0",
     "transport": "http",
     "addr": "127.0.0.1:8080",
     "path": "/mcp",

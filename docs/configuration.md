@@ -11,7 +11,7 @@ Resolution order:
 
 ## `server`
 
-Unchanged from MCPFS v1.
+Unchanged from MCPFS.
 
 | Field | Values | Notes |
 | --- | --- | --- |

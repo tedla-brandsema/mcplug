@@ -30,4 +30,4 @@ MCPlug is a pure MCP aggregating gateway (see README.md). Agents working here fo
 - Config files may contain secrets: write them 0600, keep the world-readable warning intact.
 - Behavior changes update docs (`docs/`, README) and `CHANGELOG.md` in the same change; trust-boundary changes update `docs/security.md`.
 - Deferred work goes in `TODO.md`, not code comments.
-- v1 lives on `legacy/v1`; do not resurrect roots/commands/native tools.
+- Pre-0.5 MCPFS lives on `legacy/v1`; do not resurrect roots/commands/native tools.

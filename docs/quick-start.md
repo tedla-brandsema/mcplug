@@ -28,7 +28,7 @@ This writes a starter config (mode 0600) to your user config directory (e.g. `~/
 {
   "server": {
     "name": "mcplug",
-    "version": "2.0.0",
+    "version": "0.5.0",
     "transport": "stdio"
   },
   "mcpServers": {

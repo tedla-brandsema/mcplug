@@ -14,7 +14,7 @@ MCPlug fills the gap. You describe your servers in a Claude/Cursor-compatible `m
 - serves the aggregate over stdio, localhost HTTP, or HTTP + ngrok;
 - authenticates remote clients with bearer tokens or OIDC.
 
-MCPlug implements no tools of its own. (Version 1 was a filesystem/git MCP server with native tools; see [Migration from v1](#migration-from-v1).)
+MCPlug implements no tools of its own. (Before v0.5.0 this project was MCPFS, a filesystem/git MCP server with native tools; see [Migration from MCPFS](#migration-from-mcpfs).)
 
 ## Quick start
 
@@ -39,7 +39,7 @@ Edit it to add servers. A minimal local setup with the reference filesystem and 
 {
   "server": {
     "name": "mcplug",
-    "version": "2.0.0",
+    "version": "0.5.0",
     "transport": "stdio"
   },
   "mcpServers": {
@@ -114,7 +114,7 @@ Switch the transport to `http_ngrok` and require auth:
 {
   "server": {
     "name": "mcplug",
-    "version": "2.0.0",
+    "version": "0.5.0",
     "transport": "http_ngrok",
     "addr": "127.0.0.1:8080",
     "path": "/mcp",
@@ -143,17 +143,17 @@ MCPlug does **not** sandbox upstream servers: stdio children run with the same O
 - [OIDC](examples/oidc/) — HTTP transport validating JWTs from an identity provider.
 - [ngrok development](examples/ngrok-dev/) — public development tunnel for remote clients.
 
-## Migration from v1
+## Migration from MCPFS
 
-MCPFS v1 was an MCP server with native filesystem (`fs_*`), git (`git_*`), project-overview, and command-execution tools configured through `roots` and `commands`. Version 2 removes all native tools: MCPlug is now purely a gateway, and the ecosystem servers provide the tools.
+Through v0.4.0 this project was MCPFS, an MCP server with native filesystem (`fs_*`), git (`git_*`), project-overview, and command-execution tools configured through `roots` and `commands`. v0.5.0 removes all native tools: MCPlug is purely a gateway, and the ecosystem servers provide the tools.
 
-A v1 read-only root:
+An MCPFS read-only root:
 
 ```json
 {"roots": [{"id": "project", "path": "/home/you/projects/myproject", "mode": "read"}]}
 ```
 
-becomes a reference-server entry in v2:
+becomes a reference-server entry in MCPlug:
 
 ```json
 {
@@ -172,14 +172,14 @@ becomes a reference-server entry in v2:
 
 Notes:
 
-- The reference filesystem server has no read-only mode comparable to v1 roots; use `includeTools` to restrict it (for example, keep only the `read_*`, `list_*`, and `search_*` tools).
-- v1's `commands` execution has no v2 equivalent by design.
+- The reference filesystem server has no read-only mode comparable to MCPFS roots; use `includeTools` to restrict it (for example, keep only the `read_*`, `list_*`, and `search_*` tools).
+- MCPFS's `commands` execution has no MCPlug equivalent by design.
 - The transport, auth, and ngrok configuration (`server` block) is unchanged.
-- v1 is preserved on the `legacy/v1` branch.
+- MCPFS is preserved on the `legacy/v1` branch.
 
 ## Maturity and compatibility
 
-MCPlug v2 is currently **Beta**. Configuration fields and CLI behavior may still change; breaking changes are documented in the [changelog](CHANGELOG.md).
+MCPlug is currently **Beta** (pre-1.0). Configuration fields and CLI behavior may still change; breaking changes are documented in the [changelog](CHANGELOG.md).
 
 ## Contributing
 

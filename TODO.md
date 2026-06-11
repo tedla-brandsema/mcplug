@@ -1,8 +1,8 @@
 # MCPlug TODO
 
-MCPlug v2 is a pure MCP aggregating gateway. The v1 TODO list (native fs/git/command tools) is preserved on the `legacy/v1` branch and no longer applies.
+MCPlug is a pure MCP aggregating gateway. The old MCPFS TODO list (native fs/git/command tools) is preserved on the `legacy/v1` branch and no longer applies.
 
-## Deferred from the v2 plan
+## Deferred from the gateway plan
 
 * [ ] Managed runtime download: auto-install `bun`/`uv` into the MCPlug data dir when a config references `npx`/`bunx`/`uvx` and the runtime is missing from PATH (opt-in convenience; commands still run verbatim by default).
 * [ ] Dynamic tool-list refresh: register a per-upstream `ToolListChangedHandler`, re-list on change, and mutate the live aggregate with `AddTool`/`RemoveTools`. Requires leaving `DisableStandaloneSSE` unset for HTTP upstreams. Until then the tool list is a startup snapshot.
