@@ -31,3 +31,13 @@ MCPlug is a pure MCP aggregating gateway (see README.md). Agents working here fo
 - Behavior changes update docs (`docs/`, README) and `CHANGELOG.md` in the same change; trust-boundary changes update `docs/security.md`.
 - Deferred work goes in `TODO.md`, not code comments.
 - Pre-0.5 MCPFS lives on `legacy/v1`; do not resurrect roots/commands/native tools.
+
+### Releases
+
+Every behavior change lands a `CHANGELOG.md` entry under `## [Unreleased]` in the same change. Releases are cut from that section by severity, using the commit prefix as the signal:
+
+- A `fix:` that **restores broken functionality** (a regression that made a feature unusable) is its own trigger: cut a patch release immediately, on its own. Do not let it sit in `[Unreleased]`.
+- Ordinary `fix:`/`feat:` changes accumulate under `[Unreleased]` and ship together on a cadence or when enough has piled up to be worth tagging.
+- Breaking changes (`!` in the prefix) bump the minor version (`0.N` → `0.N+1`); we are pre-1.0, so minor acts as major. Never tag `v1`/`v2` (see the versioning policy in the README).
+
+To cut a release: move the `[Unreleased]` entries under a new `## vX.Y.Z` heading, commit, then `git tag vX.Y.Z`.

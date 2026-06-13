@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+
+## v0.5.1
+
+### Fixed
+
+* `http_ngrok` transport: requests forwarded through the ngrok tunnel were rejected with `403 Forbidden: invalid Host header` by the go-sdk v1.4 DNS-rebinding protection, because the loopback listener saw the public ngrok hostname rather than a loopback `Host`. The aggregated endpoint was unreachable over ngrok. The handler now disables localhost protection for the tunneled transport only; plain local `http` keeps it.
+
 ## v0.5.0
 
 ### Breaking

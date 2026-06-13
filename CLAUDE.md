@@ -1,3 +1,9 @@
+## Project standards
+
+Before making any code or behavior change — and especially before committing —
+read and follow AGENTS.md. It is authoritative for this repo (tests, logging,
+architecture boundaries, CHANGELOG/release rules).
+
 ## graphify
 
 This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
